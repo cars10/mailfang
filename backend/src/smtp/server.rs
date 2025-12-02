@@ -1,0 +1,980 @@
+use super::parser::{EmailAttachment, parse_email_details};
+use chrono::{DateTime, Utc};
+use futures::{SinkExt, StreamExt};
+use r2d2::Pool;
+use regex::Regex;
+use std::fmt;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::thread;
+use tokio::net::{TcpListener, TcpStream};
+use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
+use uuid::Uuid;
+
+/// Decode base64 string, handling padding issues
+fn base64_decode(input: &str) -> std::result::Result<String, String> {
+    use base64::Engine;
+    let engine = base64::engine::general_purpose::STANDARD;
+    let decoded = engine
+        .decode(input.trim())
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
+    String::from_utf8(decoded).map_err(|e| format!("UTF-8 decode error: {}", e))
+}
+
+pub type Result<T> = std::result::Result<T, SmtpError>;
+
+/// Callback function type for handling received emails
+pub type OnReceiveCallback = Arc<dyn Fn(&Email) + Send + Sync>;
+
+/// Dummy connection type for r2d2 pool (represents a connection slot)
+#[derive(Debug)]
+struct ConnectionSlot;
+
+/// Connection manager for r2d2 pool
+#[derive(Debug)]
+struct ConnectionManager;
+
+impl r2d2::ManageConnection for ConnectionManager {
+    type Connection = ConnectionSlot;
+    type Error = std::io::Error;
+
+    fn connect(&self) -> std::result::Result<Self::Connection, Self::Error> {
+        Ok(ConnectionSlot)
+    }
+
+    fn is_valid(&self, _conn: &mut Self::Connection) -> std::result::Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
+        false
+    }
+}
+
+/// Basic SMTP server that can receive messages over TCP.
+pub struct SmtpServer {
+    addr: SocketAddr,
+    on_receive: Option<OnReceiveCallback>,
+    max_connections: usize,
+    auth_username: Option<String>,
+    auth_password: Option<String>,
+}
+
+impl SmtpServer {
+    /// Create a new SMTP server builder
+    /// Defaults to max_connections = num_cpus / 2
+    /// Reads SMTP_USERNAME and SMTP_PASSWORD from environment variables
+    /// If not set, all authentication attempts will be accepted
+    pub fn new(addr: SocketAddr) -> Self {
+        let default_max = thread::available_parallelism()
+            .map(|n| n.get() / 2)
+            .unwrap_or(2)
+            .max(1);
+        let auth_username = std::env::var("SMTP_USERNAME").ok();
+        let auth_password = std::env::var("SMTP_PASSWORD").ok();
+        Self {
+            addr,
+            on_receive: None,
+            max_connections: default_max,
+            auth_username,
+            auth_password,
+        }
+    }
+
+    /// Set the callback function to be called when an email is received
+    pub fn on_receive<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&Email) + Send + Sync + 'static,
+    {
+        self.on_receive = Some(Arc::new(callback));
+        self
+    }
+
+    /// Set the maximum number of concurrent connections
+    /// Clients will wait when the limit is reached
+    pub fn max_connections(mut self, max: usize) -> Self {
+        self.max_connections = max.max(1);
+        self
+    }
+
+    pub fn address(&self) -> SocketAddr {
+        self.addr
+    }
+
+    pub async fn run(&self) -> Result<()> {
+        let listener = TcpListener::bind(self.addr).await?;
+        let on_receive = self.on_receive.clone();
+
+        // Create r2d2 connection pool
+        let manager = ConnectionManager;
+        let pool = Arc::new(
+            Pool::builder()
+                .max_size(self.max_connections as u32)
+                .build(manager)
+                .map_err(|e| {
+                    SmtpError::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to create connection pool: {}", e),
+                    ))
+                })?,
+        );
+
+        eprintln!(
+            "SMTP server listening on {} (max connections: {})",
+            self.addr, self.max_connections
+        );
+
+        loop {
+            let (stream, peer) = listener.accept().await?;
+            let on_receive = on_receive.clone();
+            let pool = pool.clone();
+
+            let auth_username = self.auth_username.clone();
+            let auth_password = self.auth_password.clone();
+            tokio::spawn(async move {
+                // Get connection from pool - this will wait if we're at the connection limit
+                // r2d2's get() is blocking, so we use spawn_blocking
+                let connection_result = tokio::task::spawn_blocking({
+                    let pool = pool.clone();
+                    move || pool.get()
+                })
+                .await;
+
+                let _connection = match connection_result {
+                    Ok(Ok(conn)) => conn,
+                    Ok(Err(e)) => {
+                        eprintln!("Failed to get connection from pool for {peer}: {}", e);
+                        return;
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to spawn blocking task for {peer}: {}", e);
+                        return;
+                    }
+                };
+
+                // Connection is automatically returned to pool when dropped
+                if let Err(err) =
+                    handle_connection(stream, on_receive, auth_username, auth_password).await
+                {
+                    eprintln!("smtp session with {peer} failed: {err:?}");
+                }
+            });
+        }
+    }
+}
+
+impl Clone for SmtpServer {
+    fn clone(&self) -> Self {
+        Self {
+            addr: self.addr,
+            on_receive: self.on_receive.clone(),
+            max_connections: self.max_connections,
+            auth_username: self.auth_username.clone(),
+            auth_password: self.auth_password.clone(),
+        }
+    }
+}
+
+async fn handle_connection(
+    stream: TcpStream,
+    on_receive: Option<OnReceiveCallback>,
+    auth_username: Option<String>,
+    auth_password: Option<String>,
+) -> Result<()> {
+    let mut framed: Framed<TcpStream, LinesCodec> =
+        Framed::new(stream, LinesCodec::new_with_max_length(26_214_400));
+    framed
+        .send("220 mailswallow SMTP ready".to_string())
+        .await?;
+
+    let mut session = Session::new(on_receive, auth_username, auth_password);
+
+    while let Some(line_result) = framed.next().await {
+        match line_result {
+            Ok(line) => {
+                match session.process_line(&line) {
+                    Ok(responses) => {
+                        for response in responses {
+                            if let Err(e) = framed.send(response).await {
+                                return Err(e.into());
+                            }
+                        }
+                        if session.should_close() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = framed.send(format!("500 {}", e)).await;
+                        // Don't break on error, continue processing
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+struct Session {
+    state: SessionState,
+    greeted: bool,
+    authenticated: bool,
+    mail_from: Option<String>,
+    recipients: Vec<String>, // SMTP envelope recipients (RCPT TO)
+    buffer: Vec<String>,
+    messages: Vec<Email>,
+    quit: bool,
+    on_receive: Option<OnReceiveCallback>,
+    auth_state: AuthState,
+    auth_username: Option<String>,
+    auth_password: Option<String>,
+}
+
+impl Session {
+    fn new(
+        on_receive: Option<OnReceiveCallback>,
+        auth_username: Option<String>,
+        auth_password: Option<String>,
+    ) -> Self {
+        // If no credentials are set, authentication is not required
+        let authenticated = auth_username.is_none() || auth_password.is_none();
+        Self {
+            state: SessionState::Command,
+            greeted: false,
+            authenticated,
+            mail_from: None,
+            recipients: Vec::new(),
+            buffer: Vec::new(),
+            messages: Vec::new(),
+            quit: false,
+            on_receive,
+            auth_state: AuthState::None,
+            auth_username,
+            auth_password,
+        }
+    }
+
+    fn process_line(&mut self, line: &str) -> Result<Vec<String>> {
+        match self.state {
+            SessionState::Command => self.handle_command(line),
+            SessionState::Data => self.handle_data(line),
+            SessionState::Auth => self.handle_auth(line),
+        }
+    }
+
+    fn handle_command(&mut self, line: &str) -> Result<Vec<String>> {
+        let (command, arg) = split_command(line);
+        match command.as_str() {
+            "HELO" => {
+                self.greeted = true;
+                Ok(vec![format!("250 Hello {}", arg.unwrap_or("client"))])
+            }
+            "EHLO" => {
+                self.greeted = true;
+                // Advertise AUTH PLAIN and LOGIN capabilities
+                Ok(vec![
+                    format!("250-Hello {}", arg.unwrap_or("client")),
+                    "250-AUTH PLAIN LOGIN".into(),
+                    "250 SIZE 26214400".into(),
+                ])
+            }
+            "MAIL" => {
+                ensure(self.greeted, "503 Send HELO/EHLO first")?;
+                ensure(self.authenticated, "530 Authentication required")?;
+                let addr = parse_address(arg.unwrap_or(""))?;
+                self.mail_from = Some(addr);
+                self.recipients.clear();
+                Ok(vec!["250 Sender OK".into()])
+            }
+            "RCPT" => {
+                ensure(self.mail_from.is_some(), "503 Need MAIL FROM first")?;
+                let addr = parse_address(arg.unwrap_or(""))?;
+                self.recipients.push(addr);
+                Ok(vec!["250 Recipient OK".into()])
+            }
+            "DATA" => {
+                ensure(!self.recipients.is_empty(), "503 Need RCPT TO first")?;
+                self.state = SessionState::Data;
+                self.buffer.clear();
+                Ok(vec!["354 End data with <CR><LF>.<CR><LF>".into()])
+            }
+            "RSET" => {
+                self.reset_transaction();
+                Ok(vec!["250 Reset state".into()])
+            }
+            "NOOP" => Ok(vec!["250 OK".into()]),
+            "AUTH" => {
+                ensure(self.greeted, "503 Send HELO/EHLO first")?;
+                let auth_arg = arg.unwrap_or("");
+                let auth_parts: Vec<&str> = auth_arg.splitn(2, char::is_whitespace).collect();
+                let auth_type = auth_parts
+                    .get(0)
+                    .map(|s| s.to_uppercase())
+                    .unwrap_or_default();
+
+                match auth_type.as_str() {
+                    "PLAIN" => {
+                        if auth_parts.len() > 1 {
+                            // AUTH PLAIN <base64> - credentials provided in same line
+                            let credentials = auth_parts[1];
+                            if self.validate_plain_auth(credentials) {
+                                self.state = SessionState::Command;
+                                self.auth_state = AuthState::None;
+                                self.authenticated = true;
+                                Ok(vec!["235 Authentication successful".into()])
+                            } else {
+                                Ok(vec!["535 Authentication failed".into()])
+                            }
+                        } else {
+                            // AUTH PLAIN - wait for credentials on next line
+                            self.state = SessionState::Auth;
+                            self.auth_state = AuthState::WaitingForPlainCredentials;
+                            Ok(vec!["334 ".into()]) // Base64 prompt (empty means just send credentials)
+                        }
+                    }
+                    "LOGIN" => {
+                        self.state = SessionState::Auth;
+                        self.auth_state = AuthState::WaitingForLoginUsername;
+                        Ok(vec!["334 VXNlcm5hbWU6".into()]) // "Username:" in base64
+                    }
+                    _ => {
+                        // Unknown auth type
+                        Ok(vec!["504 Unrecognized authentication type".into()])
+                    }
+                }
+            }
+            "QUIT" => {
+                self.quit = true;
+                Ok(vec!["221 Bye".into()])
+            }
+            _ => Ok(vec!["502 Command not implemented".into()]),
+        }
+    }
+
+    fn handle_data(&mut self, line: &str) -> Result<Vec<String>> {
+        if line == "." {
+            let data = self.buffer.join("\r\n");
+            let parsed_details = parse_email_details(&data);
+
+            // Parse Date header into DateTime, fallback to current time if parsing fails
+            let date = parsed_details.date.and_then(|date_str| {
+                DateTime::parse_from_rfc2822(&date_str)
+                    .or_else(|_| DateTime::parse_from_rfc3339(&date_str))
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
+            });
+
+            // Use "To" header addresses if available, otherwise fall back to SMTP envelope recipients
+            let to_addresses = if !parsed_details.to_addresses.is_empty() {
+                parsed_details.to_addresses
+            } else {
+                self.recipients.clone()
+            };
+
+            let message = Email {
+                id: Uuid::new_v4(),
+                message_id: parsed_details.message_id.clone(),
+                subject: parsed_details.subject.clone(),
+                date,
+                headers: parsed_details.headers.clone(),
+                from: self
+                    .mail_from
+                    .clone()
+                    .unwrap_or_else(|| "unknown@example.com".to_string()),
+                to: to_addresses,
+                recipients: self.recipients.clone(),
+                size: data.as_bytes().len() as u64,
+                data: data.clone(),
+                body_text: parsed_details.body_text.clone(),
+                body_html: parsed_details.body_html.clone(),
+                attachments: parsed_details.attachments.clone(),
+            };
+            self.messages.push(message.clone());
+
+            // Call the callback if set
+            if let Some(ref callback) = self.on_receive {
+                callback(&message);
+            }
+
+            self.state = SessionState::Command;
+            self.buffer.clear();
+            Ok(vec!["250 Message received".into()])
+        } else {
+            // Handle dot-stuffing: if a line starts with "..", remove one dot
+            let processed_line = if line.starts_with("..") {
+                &line[1..]
+            } else {
+                line
+            };
+            self.buffer.push(processed_line.to_string());
+            Ok(vec![])
+        }
+    }
+
+    fn should_close(&self) -> bool {
+        self.quit
+    }
+
+    fn handle_auth(&mut self, line: &str) -> Result<Vec<String>> {
+        match &self.auth_state {
+            AuthState::WaitingForPlainCredentials => {
+                if self.validate_plain_auth(line) {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    self.authenticated = true;
+                    Ok(vec!["235 Authentication successful".into()])
+                } else {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    Ok(vec!["535 Authentication failed".into()])
+                }
+            }
+            AuthState::WaitingForLoginUsername => {
+                let username = match base64_decode(line) {
+                    Ok(u) => u,
+                    Err(_) => {
+                        self.state = SessionState::Command;
+                        self.auth_state = AuthState::None;
+                        return Ok(vec!["535 Authentication failed".into()]);
+                    }
+                };
+                self.auth_state = AuthState::WaitingForLoginPassword { username };
+                // Base64 for "Password:"
+                Ok(vec!["334 UGFzc3dvcmQ6".into()])
+            }
+            AuthState::WaitingForLoginPassword { username } => {
+                let password = match base64_decode(line) {
+                    Ok(p) => p,
+                    Err(_) => {
+                        self.state = SessionState::Command;
+                        self.auth_state = AuthState::None;
+                        return Ok(vec!["535 Authentication failed".into()]);
+                    }
+                };
+                if self.validate_login_auth(&username, &password) {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    self.authenticated = true;
+                    Ok(vec!["235 Authentication successful".into()])
+                } else {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    Ok(vec!["535 Authentication failed".into()])
+                }
+            }
+            _ => {
+                self.state = SessionState::Command;
+                self.auth_state = AuthState::None;
+                Ok(vec!["503 Bad sequence of commands".into()])
+            }
+        }
+    }
+
+    fn validate_plain_auth(&self, base64_credentials: &str) -> bool {
+        // If no credentials are configured, accept all
+        if self.auth_username.is_none() || self.auth_password.is_none() {
+            return true;
+        }
+
+        let expected_username = self.auth_username.as_ref().unwrap();
+        let expected_password = self.auth_password.as_ref().unwrap();
+
+        // Decode base64 credentials
+        let decoded = match base64_decode(base64_credentials) {
+            Ok(d) => d,
+            Err(_) => {
+                return false;
+            }
+        };
+
+        // PLAIN format: \0username\0password
+        let parts: Vec<&str> = decoded.split('\0').collect();
+        if parts.len() >= 3 {
+            let username = parts[1];
+            let password = parts[2];
+            username == expected_username && password == expected_password
+        } else {
+            false
+        }
+    }
+
+    fn validate_login_auth(&self, username: &str, password: &str) -> bool {
+        // If no credentials are configured, accept all
+        if self.auth_username.is_none() || self.auth_password.is_none() {
+            return true;
+        }
+
+        let expected_username = self.auth_username.as_ref().unwrap();
+        let expected_password = self.auth_password.as_ref().unwrap();
+        username == expected_username && password == expected_password
+    }
+
+    fn reset_transaction(&mut self) {
+        self.mail_from = None;
+        self.recipients.clear();
+        self.buffer.clear();
+    }
+
+    #[cfg(test)]
+    fn last_message(&self) -> Option<&Email> {
+        self.messages.last()
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum SessionState {
+    Command,
+    Data,
+    Auth,
+}
+
+#[derive(Debug, Clone)]
+enum AuthState {
+    None,
+    WaitingForPlainCredentials,
+    WaitingForLoginUsername,
+    WaitingForLoginPassword { username: String },
+}
+
+impl Default for SessionState {
+    fn default() -> Self {
+        SessionState::Command
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Email {
+    pub id: Uuid,
+    pub message_id: Option<String>,
+    pub subject: Option<String>,
+    pub date: Option<chrono::DateTime<Utc>>,
+    pub headers: Option<serde_json::Value>,
+    pub from: String,
+    pub to: Vec<String>,         // From "To" header
+    pub recipients: Vec<String>, // All SMTP envelope recipients
+    pub size: u64,
+    pub data: String,
+    pub body_text: String,
+    pub body_html: String,
+    pub attachments: Vec<EmailAttachment>,
+}
+
+fn split_command(input: &str) -> (String, Option<&str>) {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return ("".into(), None);
+    }
+
+    let mut parts = trimmed.splitn(2, char::is_whitespace);
+    let command = parts.next().unwrap().to_uppercase();
+    let arg = parts.next().map(str::trim);
+    (command, arg)
+}
+
+fn parse_address(arg: &str) -> Result<String> {
+    Regex::new(r"(?i)<([^>]+)>")
+        .expect("valid address regex")
+        .captures(arg)
+        .and_then(|cap| cap.get(1))
+        .map(|m| m.as_str().to_string())
+        .ok_or(SmtpError::InvalidAddress)
+}
+
+fn ensure(condition: bool, err: &'static str) -> Result<()> {
+    if condition {
+        Ok(())
+    } else {
+        Err(SmtpError::Protocol(err))
+    }
+}
+
+#[derive(Debug)]
+pub enum SmtpError {
+    Io(std::io::Error),
+    Codec(LinesCodecError),
+    Protocol(&'static str),
+    InvalidAddress,
+}
+
+impl fmt::Display for SmtpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SmtpError::Io(err) => write!(f, "io error: {err}"),
+            SmtpError::Codec(err) => write!(f, "codec error: {err}"),
+            SmtpError::Protocol(msg) => write!(f, "protocol error: {msg}"),
+            SmtpError::InvalidAddress => write!(f, "invalid address syntax"),
+        }
+    }
+}
+
+impl std::error::Error for SmtpError {}
+
+impl From<std::io::Error> for SmtpError {
+    fn from(value: std::io::Error) -> Self {
+        SmtpError::Io(value)
+    }
+}
+
+impl From<LinesCodecError> for SmtpError {
+    fn from(value: LinesCodecError) -> Self {
+        SmtpError::Codec(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::Engine;
+
+    #[test]
+    fn handles_basic_flow() {
+        let mut session = Session::new(None, None, None);
+        assert_eq!(
+            session.process_line("EHLO localhost").unwrap(),
+            vec![
+                "250-Hello localhost",
+                "250-AUTH PLAIN LOGIN",
+                "250 SIZE 26214400"
+            ]
+        );
+        assert_eq!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .unwrap(),
+            vec!["250 Sender OK"]
+        );
+        assert_eq!(
+            session
+                .process_line("RCPT TO:<recipient@example.com>")
+                .unwrap(),
+            vec!["250 Recipient OK"]
+        );
+        assert_eq!(
+            session.process_line("DATA").unwrap(),
+            vec!["354 End data with <CR><LF>.<CR><LF>"]
+        );
+
+        assert!(session.process_line("Subject: Hi").unwrap().is_empty());
+        assert!(session.process_line("").unwrap().is_empty()); // Blank line between headers and body
+        assert!(session.process_line("Body line").unwrap().is_empty());
+        assert_eq!(
+            session.process_line(".").unwrap(),
+            vec!["250 Message received"]
+        );
+
+        let stored = session.last_message().unwrap();
+        assert_eq!(stored.from, "sender@example.com");
+        assert_eq!(stored.to, vec!["recipient@example.com"]);
+        assert_eq!(stored.recipients, vec!["recipient@example.com"]);
+        assert_eq!(stored.data, "Subject: Hi\r\n\r\nBody line");
+        assert_eq!(stored.size, stored.data.as_bytes().len() as u64);
+        assert_eq!(stored.body_text, "Body line");
+        assert_eq!(stored.body_html, "");
+        // Date might be None if not in email, so we just check it's not in the future if present
+        if let Some(date) = stored.date {
+            assert!(Utc::now() >= date);
+        }
+        assert_eq!(stored.attachments.len(), 0);
+        assert_eq!(stored.subject.as_deref(), Some("Hi"));
+        assert!(stored.message_id.is_none());
+    }
+
+    #[test]
+    fn handles_cc_and_bcc_recipients() {
+        let mut session = Session::new(None, None, None);
+        assert_eq!(
+            session.process_line("EHLO localhost").unwrap(),
+            vec![
+                "250-Hello localhost",
+                "250-AUTH PLAIN LOGIN",
+                "250 SIZE 26214400"
+            ]
+        );
+        assert_eq!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .unwrap(),
+            vec!["250 Sender OK"]
+        );
+        // Add multiple RCPT TO commands (To, CC, BCC all use RCPT TO in SMTP)
+        assert_eq!(
+            session.process_line("RCPT TO:<to@example.com>").unwrap(),
+            vec!["250 Recipient OK"]
+        );
+        assert_eq!(
+            session.process_line("RCPT TO:<cc@example.com>").unwrap(),
+            vec!["250 Recipient OK"]
+        );
+        assert_eq!(
+            session.process_line("RCPT TO:<bcc@example.com>").unwrap(),
+            vec!["250 Recipient OK"]
+        );
+        assert_eq!(
+            session.process_line("DATA").unwrap(),
+            vec!["354 End data with <CR><LF>.<CR><LF>"]
+        );
+
+        // Include To, Cc, and Bcc headers in the email
+        assert!(
+            session
+                .process_line("From: sender@example.com")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            session
+                .process_line("To: to@example.com")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            session
+                .process_line("Cc: cc@example.com")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            session
+                .process_line("Bcc: bcc@example.com")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            session
+                .process_line("Subject: Test with CC and BCC")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(session.process_line("").unwrap().is_empty()); // Blank line between headers and body
+        assert!(session.process_line("Body text").unwrap().is_empty());
+        assert_eq!(
+            session.process_line(".").unwrap(),
+            vec!["250 Message received"]
+        );
+
+        let stored = session.last_message().unwrap();
+        assert_eq!(stored.from, "sender@example.com");
+        // "to" field should only contain addresses from the "To" header
+        assert_eq!(stored.to, vec!["to@example.com"]);
+        // "recipients" field should contain all SMTP envelope recipients
+        assert_eq!(
+            stored.recipients,
+            vec!["to@example.com", "cc@example.com", "bcc@example.com"]
+        );
+        assert!(stored.data.contains("To: to@example.com"));
+        assert!(stored.data.contains("Cc: cc@example.com"));
+        assert!(stored.data.contains("Bcc: bcc@example.com"));
+        assert_eq!(stored.body_text, "Body text");
+    }
+
+    #[test]
+    fn rejects_out_of_order_commands() {
+        let mut session = Session::new(None, None, None);
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_err()
+        );
+        assert!(
+            session
+                .process_line("RCPT TO:<recipient@example.com>")
+                .is_err()
+        );
+
+        session.process_line("EHLO example").unwrap();
+        assert!(
+            session
+                .process_line("RCPT TO:<recipient@example.com>")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn handles_quit() {
+        let mut session = Session::new(None, None, None);
+        session.process_line("EHLO localhost").unwrap();
+        let responses = session.process_line("QUIT").unwrap();
+        assert_eq!(responses, vec!["221 Bye"]);
+        assert!(session.should_close());
+    }
+
+    #[test]
+    fn accepts_all_when_no_credentials() {
+        let mut session = Session::new(None, None, None);
+        assert!(session.authenticated); // Should be pre-authenticated when no creds
+
+        session.process_line("EHLO localhost").unwrap();
+        // Should be able to send mail without auth
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn requires_auth_when_credentials_set() {
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        assert!(!session.authenticated); // Should require auth
+
+        session.process_line("EHLO localhost").unwrap();
+        // Should reject MAIL FROM without auth
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn auth_plain_single_line() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Create base64 encoded credentials: \0user\0pass
+        let credentials = format!("\0user\0pass");
+        let encoded = engine.encode(credentials.as_bytes());
+
+        let response = session
+            .process_line(&format!("AUTH PLAIN {}", encoded))
+            .unwrap();
+        assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+
+        // Now should be able to send mail
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn auth_plain_two_line() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // AUTH PLAIN without credentials
+        let response = session.process_line("AUTH PLAIN").unwrap();
+        assert_eq!(response, vec!["334 "]);
+
+        // Send credentials
+        let credentials = format!("\0user\0pass");
+        let encoded = engine.encode(credentials.as_bytes());
+        let response = session.process_line(&encoded).unwrap();
+        assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+    }
+
+    #[test]
+    fn auth_plain_rejects_wrong_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Wrong password
+        let credentials = format!("\0user\0wrong");
+        let encoded = engine.encode(credentials.as_bytes());
+        let response = session
+            .process_line(&format!("AUTH PLAIN {}", encoded))
+            .unwrap();
+        assert_eq!(response, vec!["535 Authentication failed"]);
+        assert!(!session.authenticated);
+    }
+
+    #[test]
+    fn auth_login() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start LOGIN auth
+        let response = session.process_line("AUTH LOGIN").unwrap();
+        assert_eq!(response, vec!["334 VXNlcm5hbWU6"]); // "Username:" in base64
+
+        // Send username
+        let username_encoded = engine.encode("user");
+        let response = session.process_line(&username_encoded).unwrap();
+        assert_eq!(response, vec!["334 UGFzc3dvcmQ6"]); // "Password:" in base64
+
+        // Send password
+        let password_encoded = engine.encode("pass");
+        let response = session.process_line(&password_encoded).unwrap();
+        assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+
+        // Now should be able to send mail
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn auth_login_rejects_wrong_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start LOGIN auth
+        session.process_line("AUTH LOGIN").unwrap();
+
+        // Send username
+        let username_encoded = engine.encode("user");
+        session.process_line(&username_encoded).unwrap();
+
+        // Send wrong password
+        let password_encoded = engine.encode("wrong");
+        let response = session.process_line(&password_encoded).unwrap();
+        assert_eq!(response, vec!["535 Authentication failed"]);
+        assert!(!session.authenticated);
+    }
+
+    #[test]
+    fn auth_plain_accepts_all_when_no_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, None, None);
+        session.process_line("EHLO localhost").unwrap();
+
+        // Any credentials should be accepted
+        let credentials = format!("\0anyuser\0anypass");
+        let encoded = engine.encode(credentials.as_bytes());
+        let response = session
+            .process_line(&format!("AUTH PLAIN {}", encoded))
+            .unwrap();
+        assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+    }
+
+    #[test]
+    fn auth_login_accepts_all_when_no_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, None, None);
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start LOGIN auth
+        session.process_line("AUTH LOGIN").unwrap();
+
+        // Any username/password should be accepted
+        let username_encoded = engine.encode("anyuser");
+        session.process_line(&username_encoded).unwrap();
+
+        let password_encoded = engine.encode("anypass");
+        let response = session.process_line(&password_encoded).unwrap();
+        assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+    }
+}

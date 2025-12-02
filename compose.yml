@@ -1,0 +1,35 @@
+services:
+  frontend:
+    container_name: $PROJECT-frontend
+    build:
+      context: ./frontend
+      dockerfile: resources/Dockerfile.dev
+      args:
+        NODE_VERSION: ${NODE_VERSION}
+    command: npm run dev
+    ports:
+      - 5173:5173
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    container_name: $PROJECT-backend
+    build:
+      context: ./backend
+      dockerfile: resources/Dockerfile.dev
+    command: cargo run
+    ports:
+      - 2525:2525
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=sqlite:/app/mailswallow.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
