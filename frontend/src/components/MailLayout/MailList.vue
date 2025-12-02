@@ -11,6 +11,7 @@
         <input
           type="text"
           placeholder="Search"
+          @keydown.escape="searchStore.query = ''"
           v-model="searchStore.query"
           class="w-full p-2 rounded-md border border-gray-300"
         />
