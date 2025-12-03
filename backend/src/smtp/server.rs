@@ -10,6 +10,7 @@ use std::thread;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
 use uuid::Uuid;
+use rand::Rng;
 
 /// Decode base64 string, handling padding issues
 fn base64_decode(input: &str) -> std::result::Result<String, String> {
@@ -274,10 +275,10 @@ impl Session {
             }
             "EHLO" => {
                 self.greeted = true;
-                // Advertise AUTH PLAIN and LOGIN capabilities
+                // Advertise AUTH PLAIN, LOGIN, and CRAM-MD5 capabilities
                 Ok(vec![
                     format!("250-Hello {}", arg.unwrap_or("client")),
-                    "250-AUTH PLAIN LOGIN".into(),
+                    "250-AUTH PLAIN LOGIN CRAM-MD5".into(),
                     "250 SIZE 26214400".into(),
                 ])
             }
@@ -339,6 +340,18 @@ impl Session {
                         self.state = SessionState::Auth;
                         self.auth_state = AuthState::WaitingForLoginUsername;
                         Ok(vec!["334 VXNlcm5hbWU6".into()]) // "Username:" in base64
+                    }
+                    "CRAM-MD5" => {
+                        // Generate a challenge (typically timestamp-based or random)
+                        let challenge = self.generate_cram_md5_challenge();
+                        self.state = SessionState::Auth;
+                        self.auth_state = AuthState::WaitingForCramMd5Response {
+                            challenge: challenge.clone(),
+                        };
+                        // Send base64-encoded challenge
+                        use base64::Engine;
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(challenge.as_bytes());
+                        Ok(vec![format!("334 {}", encoded)])
                     }
                     _ => {
                         // Unknown auth type
@@ -465,6 +478,18 @@ impl Session {
                     Ok(vec!["535 Authentication failed".into()])
                 }
             }
+            AuthState::WaitingForCramMd5Response { challenge } => {
+                if self.validate_cram_md5_auth(line, &challenge) {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    self.authenticated = true;
+                    Ok(vec!["235 Authentication successful".into()])
+                } else {
+                    self.state = SessionState::Command;
+                    self.auth_state = AuthState::None;
+                    Ok(vec!["535 Authentication failed".into()])
+                }
+            }
             _ => {
                 self.state = SessionState::Command;
                 self.auth_state = AuthState::None;
@@ -512,6 +537,86 @@ impl Session {
         username == expected_username && password == expected_password
     }
 
+    fn generate_cram_md5_challenge(&self) -> String {
+        // Generate a challenge - typically uses timestamp or random value
+        // Format: <timestamp@hostname> or similar
+        use base64::Engine;
+        let mut rng = rand::thread_rng();
+        let random_bytes: Vec<u8> = (0..16).map(|_| rng.r#gen::<u8>()).collect();
+        let challenge = format!("<{}@mailswallow>", 
+            base64::engine::general_purpose::STANDARD.encode(&random_bytes));
+        challenge
+    }
+
+    fn validate_cram_md5_auth(&self, response: &str, challenge: &str) -> bool {
+        // If no credentials are configured, accept all
+        if self.auth_username.is_none() || self.auth_password.is_none() {
+            return true;
+        }
+
+        let expected_username = self.auth_username.as_ref().unwrap();
+        let expected_password = self.auth_password.as_ref().unwrap();
+
+        // Decode base64 response
+        let decoded = match base64_decode(response) {
+            Ok(d) => d,
+            Err(_) => return false,
+        };
+
+        // CRAM-MD5 format: username<space>HMAC-MD5(challenge, password)
+        let parts: Vec<&str> = decoded.splitn(2, ' ').collect();
+        if parts.len() != 2 {
+            return false;
+        }
+
+        let username = parts[0];
+        let received_hmac_hex = parts[1];
+
+        if username != expected_username {
+            return false;
+        }
+
+        // Compute HMAC-MD5(challenge, password) manually
+        // HMAC-MD5(K, m) = MD5((K' ⊕ opad) || MD5((K' ⊕ ipad) || m))
+        let key = expected_password.as_bytes();
+        let mut key_padded = [0u8; 64];
+        if key.len() > 64 {
+            // If key is longer than 64 bytes, hash it first
+            let key_hash = md5::compute(key);
+            key_padded[..16].copy_from_slice(&key_hash.0);
+        } else {
+            key_padded[..key.len()].copy_from_slice(key);
+        }
+        
+        // Inner pad: key ⊕ 0x36
+        let mut ipad = key_padded;
+        for byte in &mut ipad {
+            *byte ^= 0x36;
+        }
+        
+        // Inner hash: MD5((K' ⊕ ipad) || challenge)
+        let mut inner_data = Vec::with_capacity(64 + challenge.len());
+        inner_data.extend_from_slice(&ipad);
+        inner_data.extend_from_slice(challenge.as_bytes());
+        let inner_hash = md5::compute(&inner_data);
+        
+        // Outer pad: key ⊕ 0x5c
+        let mut opad = key_padded;
+        for byte in &mut opad {
+            *byte ^= 0x5c;
+        }
+        
+        // Outer hash: MD5((K' ⊕ opad) || inner_hash)
+        let mut outer_data = Vec::with_capacity(64 + 16);
+        outer_data.extend_from_slice(&opad);
+        outer_data.extend_from_slice(&inner_hash.0);
+        let computed_hmac = md5::compute(&outer_data);
+        let computed_hex = hex::encode(computed_hmac.0);
+
+        // Compare (case-insensitive)
+        received_hmac_hex.to_lowercase() == computed_hex.to_lowercase()
+    }
+
     fn reset_transaction(&mut self) {
         self.mail_from = None;
         self.recipients.clear();
@@ -537,6 +642,7 @@ enum AuthState {
     WaitingForPlainCredentials,
     WaitingForLoginUsername,
     WaitingForLoginPassword { username: String },
+    WaitingForCramMd5Response { challenge: String },
 }
 
 impl Default for SessionState {
@@ -636,7 +742,7 @@ mod tests {
             session.process_line("EHLO localhost").unwrap(),
             vec![
                 "250-Hello localhost",
-                "250-AUTH PLAIN LOGIN",
+                "250-AUTH PLAIN LOGIN CRAM-MD5",
                 "250 SIZE 26214400"
             ]
         );
@@ -689,7 +795,7 @@ mod tests {
             session.process_line("EHLO localhost").unwrap(),
             vec![
                 "250-Hello localhost",
-                "250-AUTH PLAIN LOGIN",
+                "250-AUTH PLAIN LOGIN CRAM-MD5",
                 "250 SIZE 26214400"
             ]
         );
@@ -975,6 +1081,165 @@ mod tests {
         let password_encoded = engine.encode("anypass");
         let response = session.process_line(&password_encoded).unwrap();
         assert_eq!(response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+    }
+
+    // Helper function to compute HMAC-MD5 for testing
+    fn compute_hmac_md5(key: &[u8], message: &[u8]) -> String {
+        let mut key_padded = [0u8; 64];
+        if key.len() > 64 {
+            let key_hash = md5::compute(key);
+            key_padded[..16].copy_from_slice(&key_hash.0);
+        } else {
+            key_padded[..key.len()].copy_from_slice(key);
+        }
+        
+        // Inner pad: key ⊕ 0x36
+        let mut ipad = key_padded;
+        for byte in &mut ipad {
+            *byte ^= 0x36;
+        }
+        
+        // Inner hash: MD5((K' ⊕ ipad) || message)
+        let mut inner_data = Vec::with_capacity(64 + message.len());
+        inner_data.extend_from_slice(&ipad);
+        inner_data.extend_from_slice(message);
+        let inner_hash = md5::compute(&inner_data);
+        
+        // Outer pad: key ⊕ 0x5c
+        let mut opad = key_padded;
+        for byte in &mut opad {
+            *byte ^= 0x5c;
+        }
+        
+        // Outer hash: MD5((K' ⊕ opad) || inner_hash)
+        let mut outer_data = Vec::with_capacity(64 + 16);
+        outer_data.extend_from_slice(&opad);
+        outer_data.extend_from_slice(&inner_hash.0);
+        let computed_hmac = md5::compute(&outer_data);
+        hex::encode(computed_hmac.0)
+    }
+
+    #[test]
+    fn auth_cram_md5() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start CRAM-MD5 auth
+        let response = session.process_line("AUTH CRAM-MD5").unwrap();
+        assert_eq!(response.len(), 1);
+        assert!(response[0].starts_with("334 "));
+        
+        // Extract challenge from response (base64 encoded)
+        let challenge_encoded = &response[0][4..];
+        let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
+        
+        // Compute HMAC-MD5(challenge, password)
+        let hmac_hex = compute_hmac_md5(b"pass", challenge.as_bytes());
+        
+        // Create response: username<space>HMAC-MD5-hex
+        let response_text = format!("user {}", hmac_hex);
+        let response_encoded = engine.encode(response_text.as_bytes());
+        
+        // Send response
+        let auth_response = session.process_line(&response_encoded).unwrap();
+        assert_eq!(auth_response, vec!["235 Authentication successful"]);
+        assert!(session.authenticated);
+
+        // Now should be able to send mail
+        assert!(
+            session
+                .process_line("MAIL FROM:<sender@example.com>")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn auth_cram_md5_rejects_wrong_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start CRAM-MD5 auth
+        let response = session.process_line("AUTH CRAM-MD5").unwrap();
+        assert_eq!(response.len(), 1);
+        assert!(response[0].starts_with("334 "));
+        
+        // Extract challenge from response
+        let challenge_encoded = &response[0][4..];
+        let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
+        
+        // Compute HMAC-MD5 with wrong password
+        let hmac_hex = compute_hmac_md5(b"wrongpass", challenge.as_bytes());
+        
+        // Create response with wrong password
+        let response_text = format!("user {}", hmac_hex);
+        let response_encoded = engine.encode(response_text.as_bytes());
+        
+        // Send response
+        let auth_response = session.process_line(&response_encoded).unwrap();
+        assert_eq!(auth_response, vec!["535 Authentication failed"]);
+        assert!(!session.authenticated);
+    }
+
+    #[test]
+    fn auth_cram_md5_rejects_wrong_username() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()));
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start CRAM-MD5 auth
+        let response = session.process_line("AUTH CRAM-MD5").unwrap();
+        assert_eq!(response.len(), 1);
+        assert!(response[0].starts_with("334 "));
+        
+        // Extract challenge from response
+        let challenge_encoded = &response[0][4..];
+        let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
+        
+        // Compute HMAC-MD5 with correct password but wrong username
+        let hmac_hex = compute_hmac_md5(b"pass", challenge.as_bytes());
+        
+        // Create response with wrong username
+        let response_text = format!("wronguser {}", hmac_hex);
+        let response_encoded = engine.encode(response_text.as_bytes());
+        
+        // Send response
+        let auth_response = session.process_line(&response_encoded).unwrap();
+        assert_eq!(auth_response, vec!["535 Authentication failed"]);
+        assert!(!session.authenticated);
+    }
+
+    #[test]
+    fn auth_cram_md5_accepts_all_when_no_credentials() {
+        let engine = base64::engine::general_purpose::STANDARD;
+
+        let mut session = Session::new(None, None, None);
+        session.process_line("EHLO localhost").unwrap();
+
+        // Start CRAM-MD5 auth
+        let response = session.process_line("AUTH CRAM-MD5").unwrap();
+        assert_eq!(response.len(), 1);
+        assert!(response[0].starts_with("334 "));
+        
+        // Extract challenge from response
+        let challenge_encoded = &response[0][4..];
+        let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
+        
+        // Compute HMAC-MD5 with any password
+        let hmac_hex = compute_hmac_md5(b"anypass", challenge.as_bytes());
+        
+        // Create response with any credentials
+        let response_text = format!("anyuser {}", hmac_hex);
+        let response_encoded = engine.encode(response_text.as_bytes());
+        
+        // Send response - should be accepted when no credentials configured
+        let auth_response = session.process_line(&response_encoded).unwrap();
+        assert_eq!(auth_response, vec!["235 Authentication successful"]);
         assert!(session.authenticated);
     }
 }
