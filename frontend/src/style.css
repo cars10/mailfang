@@ -22,19 +22,17 @@ body {
 #app {
   @apply flex;
   @apply flex-col;
-  @apply flex-grow;
+  @apply grow;
 }
 
 .btn {
-  @apply px-4;
-  @apply py-2;
   @apply text-sm;
   @apply font-medium;
   @apply text-indigo-700;
   @apply hover:shadow-sm;
   @apply hover:bg-gray-50;
   @apply border-gray-300;
-  @apply border-1;
+  @apply border;
   @apply focus:border-indigo-700;
   @apply focus:outline-none;
   @apply rounded-sm;
@@ -42,4 +40,14 @@ body {
   @apply items-center;
   @apply gap-2;
   @apply cursor-pointer;
+}
+
+.btn:not(.btn--small) {
+  @apply px-4;
+  @apply py-2;
+}
+
+.btn--small {
+  @apply px-2;
+  @apply py-1;
 }

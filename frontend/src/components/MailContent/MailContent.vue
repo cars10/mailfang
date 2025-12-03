@@ -11,49 +11,7 @@
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
       <MailHeader :email="email" />
 
-      <div class="flex items-center gap-2 mt-4">
-        <button
-          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1"
-          @click="downloadRawEmail"
-        >
-          <ArrowDownTrayIcon class="h-4 w-4" />
-          Download Raw
-        </button>
-        <button
-          class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          @click="handleArchive"
-        >
-          {{ email.archived ? 'Unarchive' : 'Archive' }}
-        </button>
-      </div>
-
-      <!-- Attachments -->
-      <div
-        v-if="email.attachments && email.attachments.length > 0"
-        class="border-b border-gray-200 px-6 py-3 bg-gray-50"
-      >
-        <div class="flex items-center gap-2 mb-2">
-          <PaperClipIcon class="h-4 w-4 text-gray-500" />
-          <span class="text-sm font-medium text-gray-700">
-            {{ email.attachments.length }}
-            {{ email.attachments.length === 1 ? 'attachment' : 'attachments' }}
-          </span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <a
-            v-for="attachment in email.attachments"
-            :key="attachment.id"
-            :href="getAttachmentUrl(attachment.id)"
-            class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-colors"
-          >
-            <PaperClipIcon class="h-4 w-4 text-gray-500" />
-            <span>{{ attachment.filename || 'Unnamed attachment' }}</span>
-            <span class="text-xs text-gray-500"
-              >({{ formatFileSize(attachment.size) }})</span
-            >
-          </a>
-        </div>
-      </div>
+      <MailAttachments :email="email" />
 
       <div class="mt-4">
         <Tabs v-model="viewMode" :tabs="emailTabs" />
@@ -123,20 +81,16 @@
 
 <script setup lang="ts">
   import { ref, computed, onMounted, watch } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import {
-    PaperClipIcon,
-    ArrowDownTrayIcon,
-    CodeBracketIcon,
-  } from '@heroicons/vue/24/outline'
+  import { useRoute } from 'vue-router'
+  import { CodeBracketIcon } from '@heroicons/vue/24/outline'
   import { apiClient } from '@/api/client'
   import type { EmailRecord } from '@/types/email'
   import Tabs from '@/components/shared/Tabs/Tabs.vue'
   import CodeViewer from '@/components/shared/CodeViewer/CodeViewer.vue'
   import MailHeader from './MailHeader.vue'
+  import MailAttachments from './MailAttachments.vue'
 
   const route = useRoute()
-  const router = useRouter()
   const mailId = ref<string>(route.params.id as string)
   const email = ref<EmailRecord | null>(null)
   const loading = ref(true)
@@ -189,18 +143,6 @@
     }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`
-  }
-
-  const getAttachmentUrl = (id: string) => {
-    return apiClient.getAttachmentUrl(id)
-  }
-
   const loadRawEmail = async () => {
     if (rawEmailContent.value) return // Already loaded
     if (!email.value) return
@@ -218,46 +160,6 @@
       loadRawEmail()
     }
   })
-
-  const downloadRawEmail = async () => {
-    if (!email.value) return
-
-    try {
-      const rawData = await apiClient.getRawEmail(mailId.value)
-      const blob = new Blob([rawData], { type: 'message/rfc822' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `email-${mailId.value}.eml`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('Failed to download raw email:', err)
-      error.value = 'Failed to download raw email'
-    }
-  }
-
-  const handleArchive = async () => {
-    if (!email.value) return
-
-    try {
-      const newArchivedState = !email.value.archived
-      await apiClient.archive(mailId.value, newArchivedState)
-      email.value.archived = newArchivedState
-
-      // Navigate back to inbox if archiving
-      if (newArchivedState) {
-        const currentPath = router.currentRoute.value.path
-        const basePath = currentPath.split('/').slice(0, 3).join('/')
-        router.push(basePath)
-      }
-    } catch (err) {
-      console.error('Failed to archive email:', err)
-      error.value = 'Failed to archive email'
-    }
-  }
 
   // Set initial view mode based on available content
   watch(
