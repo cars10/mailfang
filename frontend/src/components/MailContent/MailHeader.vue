@@ -1,7 +1,7 @@
 <template>
   <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
     <div class="flex items-start justify-between gap-2 mb-4">
-      <h1 class="text-2xl font-bold text-gray-900">
+      <h1 class="text-2xl text-gray-900">
         {{ email.subject || '(No Subject)' }}
       </h1>
       <div class="text-gray-600 text-nowrap">
