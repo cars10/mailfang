@@ -11,49 +11,34 @@
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
       <MailHeader :email="email" />
 
-      <MailAttachments :email="email" />
+      <MailAttachments v-if="email.attachments.length > 0" :email="email" />
 
       <div class="mt-4">
         <Tabs v-model="viewMode" :tabs="emailTabs" />
       </div>
 
-      <!-- Email Body -->
-      <div
-        class="flex-1 px-6 py-6"
-        :class="{
-          'flex flex-col':
-            (viewMode === 'rendered' && email.rendered_body_html) ||
-            (viewMode === 'html' && email.body_html) ||
-            (viewMode === 'text' &&
-              !email.body_text &&
-              email.rendered_body_html),
-        }"
-      >
-        <!-- Rendered HTML View -->
+      <div class="flex-1">
         <iframe
           v-if="viewMode === 'rendered' && email.rendered_body_html"
           :srcdoc="email.rendered_body_html"
-          class="w-full border-0 flex-1 min-h-[400px]"
+          class="w-full border-0 h-full"
         ></iframe>
 
-        <!-- Unrendered HTML View -->
-        <CodeViewer
-          v-else-if="viewMode === 'html' && email.body_html"
-          :content="email.body_html"
-        />
+        <div v-if="viewMode === 'html' && email.body_html" class="p-4">
+          <CodeViewer :content="email.body_html" />
+        </div>
 
-        <!-- Text Body -->
         <div
           v-else-if="viewMode === 'text' && email.body_text"
-          class="max-w-none whitespace-pre-wrap"
+          class="max-w-none whitespace-pre-wrap p-4"
         >
           {{ email.body_text }}
         </div>
 
-        <!-- Raw Email View -->
-        <CodeViewer v-else-if="viewMode === 'raw'" :content="rawEmailContent" />
+        <div v-else-if="viewMode === 'raw'" class="p-4">
+          <CodeViewer :content="rawEmailContent" />
+        </div>
 
-        <!-- Fallback: Show text if rendered not available -->
         <div
           v-else-if="
             viewMode === 'rendered' &&

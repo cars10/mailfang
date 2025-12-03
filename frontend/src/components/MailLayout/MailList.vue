@@ -17,7 +17,7 @@
         />
       </div>
 
-      <div class="overflow-y-auto h-full">
+      <div class="overflow-y-auto">
         <div v-if="loading" class="flex items-center justify-center p-8">
           <div class="text-gray-500">Loading emails...</div>
         </div>
@@ -69,20 +69,6 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <div
-            v-if="hasNextPage"
-            class="flex items-center justify-center p-4 border-t border-gray-300"
-          >
-            <button
-              v-if="!loadingMore"
-              class="text-indigo-600 hover:text-indigo-800 hover:underline"
-              @click="$emit('load-more')"
-            >
-              Load more
-            </button>
-            <div v-else class="text-gray-500">Loading more...</div>
           </div>
         </template>
       </div>
