@@ -36,7 +36,7 @@
         </div>
 
         <div v-else-if="viewMode === 'raw'" class="p-4">
-          <CodeViewer :content="rawEmailContent" />
+          <CodeViewer :content="rawEmailContent || ''" />
         </div>
 
         <div
@@ -81,7 +81,7 @@
   const loading = ref(true)
   const error = ref<string | null>(null)
   const viewMode = ref<'rendered' | 'html' | 'text' | 'raw'>('rendered')
-  const rawEmailContent = ref<string>('')
+  const rawEmailContent = ref<string | null>(null)
 
   const emailTabs = computed(() => {
     const tabs = []
@@ -147,6 +147,7 @@
         // Prefer rendered HTML if available, otherwise text
         viewMode.value = newEmail.rendered_body_html ? 'rendered' : 'text'
       }
+      rawEmailContent.value = null
     },
     { immediate: true }
   )
