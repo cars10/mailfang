@@ -50,9 +50,16 @@ impl From<std::io::Error> for WebError {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebSocketEvent {
+    NewEmail,
+    EmailUpdated,
+}
+
 #[derive(serde::Serialize, Clone)]
 pub struct WebSocketMessage {
-    pub event: String,
+    pub event: WebSocketEvent,
     pub email: Option<crate::db::EmailListRecord>,
     pub counts: Option<crate::db::EmailStats>,
 }
@@ -181,9 +188,32 @@ async fn get_email(
 
     if !email.read {
         mark_email_read(&state.pool, &id, true).await?;
+        let updated_email = get_email_by_id(&state.pool, &id)
+            .await?
+            .ok_or(WebError::NotFound)?;
+        let email_list_record = crate::db::EmailListRecord {
+            id: updated_email.id.clone(),
+            subject: updated_email.subject.clone(),
+            date: updated_email.date,
+            created_at: updated_email.created_at,
+            from: updated_email.from.clone(),
+            to: updated_email.to.clone(),
+            read: updated_email.read,
+            has_attachments: !updated_email.attachments.is_empty(),
+        };
+        let counts = get_email_stats(&state.pool).await.ok();
+        state
+            .broadcast
+            .send(WebSocketMessage {
+                event: WebSocketEvent::EmailUpdated,
+                email: Some(email_list_record),
+                counts,
+            })
+            .ok();
+        Ok(Json(updated_email))
+    } else {
+        Ok(Json(email))
     }
-
-    Ok(Json(email))
 }
 
 async fn serve_index_with_path(
@@ -200,6 +230,15 @@ async fn delete_email(
 ) -> Result<StatusCode, WebError> {
     let rows_affected = delete_email_by_id(&state.pool, &id).await?;
     if rows_affected > 0 {
+        let counts = get_email_stats(&state.pool).await.ok();
+        state
+            .broadcast
+            .send(WebSocketMessage {
+                event: WebSocketEvent::EmailUpdated,
+                email: None,
+                counts,
+            })
+            .ok();
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(WebError::NotFound)
@@ -299,13 +338,26 @@ async fn mark_read(
 ) -> Result<StatusCode, WebError> {
     let rows_affected = mark_email_read(&state.pool, &id, request.read).await?;
     if rows_affected > 0 {
-        // Send WebSocket notification that email was updated
-        let counts = get_email_stats(&state.pool).await.ok();
-        let _ = state.broadcast.send(WebSocketMessage {
-            event: "new_email".to_string(),
-            email: None,
-            counts,
+        let email_result = get_email_by_id(&state.pool, &id).await.ok().flatten();
+        let email_list_record = email_result.map(|email_record| crate::db::EmailListRecord {
+            id: email_record.id,
+            subject: email_record.subject,
+            date: email_record.date,
+            created_at: email_record.created_at,
+            from: email_record.from,
+            to: email_record.to,
+            read: email_record.read,
+            has_attachments: !email_record.attachments.is_empty(),
         });
+        let counts = get_email_stats(&state.pool).await.ok();
+        state
+            .broadcast
+            .send(WebSocketMessage {
+                event: WebSocketEvent::EmailUpdated,
+                email: email_list_record,
+                counts,
+            })
+            .ok();
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(WebError::NotFound)
@@ -319,13 +371,26 @@ async fn archive_email_endpoint(
 ) -> Result<StatusCode, WebError> {
     let rows_affected = archive_email(&state.pool, &id, request.archived).await?;
     if rows_affected > 0 {
-        // Send WebSocket notification that email was updated
-        let counts = get_email_stats(&state.pool).await.ok();
-        let _ = state.broadcast.send(WebSocketMessage {
-            event: "new_email".to_string(),
-            email: None,
-            counts,
+        let email_result = get_email_by_id(&state.pool, &id).await.ok().flatten();
+        let email_list_record = email_result.map(|email_record| crate::db::EmailListRecord {
+            id: email_record.id,
+            subject: email_record.subject,
+            date: email_record.date,
+            created_at: email_record.created_at,
+            from: email_record.from,
+            to: email_record.to,
+            read: email_record.read,
+            has_attachments: !email_record.attachments.is_empty(),
         });
+        let counts = get_email_stats(&state.pool).await.ok();
+        state
+            .broadcast
+            .send(WebSocketMessage {
+                event: WebSocketEvent::EmailUpdated,
+                email: email_list_record,
+                counts,
+            })
+            .ok();
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(WebError::NotFound)

@@ -6,7 +6,6 @@ use tokio::sync::broadcast;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Read ports from environment variables
     let smtp_port = std::env::var("SMTP_PORT")
         .unwrap_or_else(|_| "2525".to_string())
         .parse::<u16>()?;
@@ -21,7 +20,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .expect("valid web listen addr");
 
-    // Initialize database and run migrations
     let database_url =
         std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://mailswallow.db".to_string());
     let db = Arc::new(
@@ -30,14 +28,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to connect to database"),
     );
 
-    // Run migrations using SeaORM Migrator
     migration::Migrator::up(&*db, None).await?;
     println!("Database migrations completed");
 
-    // Create broadcast channel for WebSocket notifications
     let (broadcast_tx, _) = broadcast::channel::<web::WebSocketMessage>(100);
 
-    // Create callback that saves to database and sends WebSocket notification
     let db_for_smtp = db.clone();
     let broadcast_for_smtp = broadcast_tx.clone();
     let save_callback = move |message: &smtp::Email| {
@@ -47,12 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::spawn(async move {
             match db::save_email(&db, &message).await {
                 Ok(email_id) => {
-                    // Fetch the email list record and counts to send in the websocket message
                     let email_result = db::get_email_by_id(&db, &email_id).await;
                     let counts_result = db::get_email_stats(&db).await;
 
                     let email_list_record = if let Ok(Some(email_record)) = email_result {
-                        // Convert to EmailListRecord
                         Some(db::EmailListRecord {
                             id: email_record.id,
                             subject: email_record.subject,
@@ -69,12 +62,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let counts = counts_result.ok();
 
-                    // Send WebSocket notification with the email data and counts
-                    let _ = broadcast.send(web::WebSocketMessage {
-                        event: "new_email".to_string(),
-                        email: email_list_record,
-                        counts,
-                    });
+                    broadcast
+                        .send(web::WebSocketMessage {
+                            event: web::WebSocketEvent::NewEmail,
+                            email: email_list_record,
+                            counts,
+                        })
+                        .ok();
                 }
                 Err(e) => {
                     eprintln!("Failed to save email to database: {}", e);
@@ -83,10 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     };
 
-    // Run SMTP and web servers concurrently
     let smtp_server = smtp::SmtpServer::new(smtp_addr).on_receive(save_callback);
 
-    // Only set static_dir if STATIC_DIR env var is explicitly set (production mode)
     let static_dir = std::env::var("STATIC_DIR").ok();
 
     tokio::select! {
