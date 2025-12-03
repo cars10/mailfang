@@ -9,17 +9,15 @@
     >
       <div class="p-4 border-b border-gray-300">
         <input
+          v-model="searchStore.query"
           type="text"
           placeholder="Search"
-          @keydown.escape="searchStore.query = ''"
-          v-model="searchStore.query"
           class="w-full p-2 rounded-md border border-gray-300"
+          @keydown.escape="searchStore.query = ''"
         />
       </div>
 
-      <div
-        class="overflow-y-auto h-full"
-      >
+      <div class="overflow-y-auto h-full">
         <div v-if="loading" class="flex items-center justify-center p-8">
           <div class="text-gray-500">Loading emails...</div>
         </div>
@@ -79,8 +77,8 @@
           >
             <button
               v-if="!loadingMore"
-              @click="$emit('load-more')"
               class="text-indigo-600 hover:text-indigo-800 hover:underline"
+              @click="$emit('load-more')"
             >
               Load more
             </button>

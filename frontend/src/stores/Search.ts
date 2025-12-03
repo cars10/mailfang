@@ -10,4 +10,3 @@ export const useSearchStore = defineStore('search', {
   }),
   persist: true,
 })
-

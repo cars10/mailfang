@@ -21,7 +21,10 @@
             {{ link.label }}
           </div>
         </div>
-        <span v-if="link.count !== undefined" class="text-sm text-gray-600 font-mono">
+        <span
+          v-if="link.count !== undefined"
+          class="text-sm text-gray-600 font-mono"
+        >
           {{ link.count }}
         </span>
       </router-link>

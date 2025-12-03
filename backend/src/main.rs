@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Database migrations completed");
 
     // Create broadcast channel for WebSocket notifications
-    let (broadcast_tx, _) = broadcast::channel::<String>(100);
+    let (broadcast_tx, _) = broadcast::channel::<web::WebSocketMessage>(100);
 
     // Create callback that saves to database and sends WebSocket notification
     let db_for_smtp = db.clone();
@@ -45,11 +45,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let broadcast = broadcast_for_smtp.clone();
         let message = message.clone();
         tokio::spawn(async move {
-            if let Err(e) = db::save_email(db.as_ref(), &message).await {
-                eprintln!("Failed to save email to database: {}", e);
-            } else {
-                // Send WebSocket notification that a new email was saved
-                let _ = broadcast.send("new_email".to_string());
+            match db::save_email(&db, &message).await {
+                Ok(email_id) => {
+                    // Fetch the email list record and counts to send in the websocket message
+                    let email_result = db::get_email_by_id(&db, &email_id).await;
+                    let counts_result = db::get_email_stats(&db).await;
+
+                    let email_list_record = if let Ok(Some(email_record)) = email_result {
+                        // Convert to EmailListRecord
+                        Some(db::EmailListRecord {
+                            id: email_record.id,
+                            subject: email_record.subject,
+                            date: email_record.date,
+                            created_at: email_record.created_at,
+                            from: email_record.from,
+                            to: email_record.to,
+                            read: email_record.read,
+                            has_attachments: !email_record.attachments.is_empty(),
+                        })
+                    } else {
+                        None
+                    };
+
+                    let counts = counts_result.ok();
+
+                    // Send WebSocket notification with the email data and counts
+                    let _ = broadcast.send(web::WebSocketMessage {
+                        event: "new_email".to_string(),
+                        email: email_list_record,
+                        counts,
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Failed to save email to database: {}", e);
+                }
             }
         });
     };

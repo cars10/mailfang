@@ -44,24 +44,36 @@ export class ApiClient {
   // Email list endpoints
   async inbox(page: number = 1, search?: string): Promise<EmailListResponse> {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(`/api/emails?page=${page}${searchParam}`)
+    return this.request<EmailListResponse>(
+      `/api/emails?page=${page}${searchParam}`
+    )
   }
 
   async unread(page: number = 1, search?: string): Promise<EmailListResponse> {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(`/api/emails/unread?page=${page}${searchParam}`)
+    return this.request<EmailListResponse>(
+      `/api/emails/unread?page=${page}${searchParam}`
+    )
   }
 
-  async withAttachments(page: number = 1, search?: string): Promise<EmailListResponse> {
+  async withAttachments(
+    page: number = 1,
+    search?: string
+  ): Promise<EmailListResponse> {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
     return this.request<EmailListResponse>(
       `/api/emails/with-attachments?page=${page}${searchParam}`
     )
   }
 
-  async archived(page: number = 1, search?: string): Promise<EmailListResponse> {
+  async archived(
+    page: number = 1,
+    search?: string
+  ): Promise<EmailListResponse> {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(`/api/emails/archived?page=${page}${searchParam}`)
+    return this.request<EmailListResponse>(
+      `/api/emails/archived?page=${page}${searchParam}`
+    )
   }
 
   // Single email operations

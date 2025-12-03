@@ -30,7 +30,7 @@ pub struct EmailRecord {
     pub attachments: Vec<EmailAttachmentRecord>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 pub struct EmailListRecord {
     pub id: String,
     pub subject: Option<String>,
@@ -60,7 +60,7 @@ pub struct AttachmentContent {
     pub data: Vec<u8>,
 }
 
-pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<(), DbErr> {
+pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<String, DbErr> {
     let txn = db.begin().await?;
 
     // Generate attachment IDs first so we can process HTML with correct URLs
@@ -168,7 +168,7 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<(), 
     }
 
     txn.commit().await?;
-    Ok(())
+    Ok(message.id.to_string())
 }
 
 fn get_sort_column(sort: Option<&str>) -> emails::Column {
@@ -215,9 +215,7 @@ fn apply_sorting(
     }
 }
 
-fn convert_emails_to_list_records(
-    email_models: Vec<emails::Model>,
-) -> Vec<EmailListRecord> {
+fn convert_emails_to_list_records(email_models: Vec<emails::Model>) -> Vec<EmailListRecord> {
     email_models
         .into_iter()
         .map(email_model_to_list_record)
@@ -270,9 +268,7 @@ fn email_model_to_record(
     }
 }
 
-fn email_model_to_list_record(
-    email: emails::Model,
-) -> EmailListRecord {
+fn email_model_to_list_record(email: emails::Model) -> EmailListRecord {
     let to: Vec<String> =
         serde_json::from_str(&email.to).unwrap_or_else(|_| vec![email.from.clone()]);
 
@@ -461,7 +457,7 @@ pub async fn get_raw_data_by_id(
     Ok(email.map(|e| e.raw_data))
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 pub struct EmailStats {
     pub inbox: u64,
     pub unread: u64,

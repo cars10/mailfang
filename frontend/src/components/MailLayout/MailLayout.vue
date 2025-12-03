@@ -56,6 +56,21 @@
     return apiClient.inbox(page, search)
   }
 
+  const shouldShowEmail = (email: EmailListRecord, path: string): boolean => {
+    // Note: EmailListRecord doesn't have archived field, so we assume non-archived for inbox/unread/with-attachments
+    // and archived emails won't appear in those views anyway
+    if (path.startsWith('/mails/inbox')) {
+      return true // All non-archived emails show in inbox
+    } else if (path.startsWith('/mails/unread')) {
+      return !email.read
+    } else if (path.startsWith('/mails/with-attachments')) {
+      return email.has_attachments
+    } else if (path.startsWith('/mails/archive')) {
+      return true // All archived emails show in archive
+    }
+    return true
+  }
+
   const fetchMails = async (reset: boolean = true) => {
     try {
       if (reset) {
@@ -75,7 +90,8 @@
       }
       counts.value = response.counts
       currentPage.value = response.pagination.page
-      hasNextPage.value = response.pagination.page < response.pagination.total_pages
+      hasNextPage.value =
+        response.pagination.page < response.pagination.total_pages
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : 'Failed to fetch emails'
@@ -83,6 +99,33 @@
       loading.value = false
       loadingMore.value = false
     }
+  }
+
+  const handleNewEmail = (email: EmailListRecord, newCounts?: EmailCounts) => {
+    // Update counts if provided
+    if (newCounts) {
+      counts.value = newCounts
+    }
+
+    // Don't add if we have a search query active
+    if (searchStore.query.trim()) {
+      return
+    }
+
+    // Check if email should be shown in current view
+    if (!shouldShowEmail(email, route.path)) {
+      // Email doesn't match current view, but counts are already updated
+      return
+    }
+
+    // Check for duplicates
+    const existingIds = new Set(emails.value.map(e => e.id))
+    if (existingIds.has(email.id)) {
+      return
+    }
+
+    // Prepend the new email to the list
+    emails.value = [email, ...emails.value]
   }
 
   const loadMore = async () => {
@@ -95,8 +138,25 @@
   useWebSocket(
     {
       onMessage: event => {
-        if (event.data === 'new_email' || event.data === 'email_updated') {
-          fetchMails()
+        try {
+          const message = JSON.parse(event.data)
+          if (message.event === 'new_email') {
+            if (message.email) {
+              // New email with data - prepend it if it matches current view
+              handleNewEmail(message.email, message.counts)
+            } else {
+              // Email updated but no email data, reload to reflect changes
+              if (message.counts) {
+                counts.value = message.counts
+              }
+              fetchMails()
+            }
+          }
+        } catch {
+          // If parsing fails, treat as old format string message
+          if (event.data === 'new_email' || event.data === 'email_updated') {
+            fetchMails()
+          }
         }
       },
     },

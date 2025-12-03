@@ -50,7 +50,14 @@ impl From<std::io::Error> for WebError {
     }
 }
 
-pub type BroadcastSender = broadcast::Sender<String>;
+#[derive(serde::Serialize, Clone)]
+pub struct WebSocketMessage {
+    pub event: String,
+    pub email: Option<crate::db::EmailListRecord>,
+    pub counts: Option<crate::db::EmailStats>,
+}
+
+pub type BroadcastSender = broadcast::Sender<WebSocketMessage>;
 
 #[derive(Clone)]
 struct AppState {
@@ -144,7 +151,7 @@ async fn list_emails(
     let page = params.page.unwrap_or(1);
     let per_page = 10;
     let (emails, total_pages) = get_all_emails(
-        state.pool.as_ref(),
+        &state.pool,
         params.sort.as_deref(),
         params.order.as_deref(),
         params.search.as_deref(),
@@ -152,7 +159,7 @@ async fn list_emails(
         per_page,
     )
     .await?;
-    let counts = get_email_stats(state.pool.as_ref()).await?;
+    let counts = get_email_stats(&state.pool).await?;
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -168,12 +175,12 @@ async fn get_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<crate::db::EmailRecord>, WebError> {
-    let email = get_email_by_id(state.pool.as_ref(), &id)
+    let email = get_email_by_id(&state.pool, &id)
         .await?
         .ok_or(WebError::NotFound)?;
 
     if !email.read {
-        mark_email_read(state.pool.as_ref(), &id, true).await?;
+        mark_email_read(&state.pool, &id, true).await?;
     }
 
     Ok(Json(email))
@@ -191,7 +198,7 @@ async fn delete_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, WebError> {
-    let rows_affected = delete_email_by_id(state.pool.as_ref(), &id).await?;
+    let rows_affected = delete_email_by_id(&state.pool, &id).await?;
     if rows_affected > 0 {
         Ok(StatusCode::NO_CONTENT)
     } else {
@@ -200,7 +207,7 @@ async fn delete_email(
 }
 
 async fn delete_all(State(state): State<AppState>) -> Result<StatusCode, WebError> {
-    delete_all_emails(state.pool.as_ref()).await?;
+    delete_all_emails(&state.pool).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -211,7 +218,7 @@ async fn list_unread_emails(
     let page = params.page.unwrap_or(1);
     let per_page = 10;
     let (emails, total_pages) = get_unread_emails(
-        state.pool.as_ref(),
+        &state.pool,
         params.sort.as_deref(),
         params.order.as_deref(),
         params.search.as_deref(),
@@ -219,7 +226,7 @@ async fn list_unread_emails(
         per_page,
     )
     .await?;
-    let counts = get_email_stats(state.pool.as_ref()).await?;
+    let counts = get_email_stats(&state.pool).await?;
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -238,7 +245,7 @@ async fn list_emails_with_attachments(
     let page = params.page.unwrap_or(1);
     let per_page = 10;
     let (emails, total_pages) = get_emails_with_attachments(
-        state.pool.as_ref(),
+        &state.pool,
         params.sort.as_deref(),
         params.order.as_deref(),
         params.search.as_deref(),
@@ -246,7 +253,7 @@ async fn list_emails_with_attachments(
         per_page,
     )
     .await?;
-    let counts = get_email_stats(state.pool.as_ref()).await?;
+    let counts = get_email_stats(&state.pool).await?;
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -265,7 +272,7 @@ async fn list_archived_emails(
     let page = params.page.unwrap_or(1);
     let per_page = 10;
     let (emails, total_pages) = get_archived_emails(
-        state.pool.as_ref(),
+        &state.pool,
         params.sort.as_deref(),
         params.order.as_deref(),
         params.search.as_deref(),
@@ -273,7 +280,7 @@ async fn list_archived_emails(
         per_page,
     )
     .await?;
-    let counts = get_email_stats(state.pool.as_ref()).await?;
+    let counts = get_email_stats(&state.pool).await?;
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -290,10 +297,15 @@ async fn mark_read(
     Path(id): Path<String>,
     Json(request): Json<ReadRequest>,
 ) -> Result<StatusCode, WebError> {
-    let rows_affected = mark_email_read(state.pool.as_ref(), &id, request.read).await?;
+    let rows_affected = mark_email_read(&state.pool, &id, request.read).await?;
     if rows_affected > 0 {
         // Send WebSocket notification that email was updated
-        let _ = state.broadcast.send("email_updated".to_string());
+        let counts = get_email_stats(&state.pool).await.ok();
+        let _ = state.broadcast.send(WebSocketMessage {
+            event: "new_email".to_string(),
+            email: None,
+            counts,
+        });
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(WebError::NotFound)
@@ -305,10 +317,15 @@ async fn archive_email_endpoint(
     Path(id): Path<String>,
     Json(request): Json<ArchiveRequest>,
 ) -> Result<StatusCode, WebError> {
-    let rows_affected = archive_email(state.pool.as_ref(), &id, request.archived).await?;
+    let rows_affected = archive_email(&state.pool, &id, request.archived).await?;
     if rows_affected > 0 {
         // Send WebSocket notification that email was updated
-        let _ = state.broadcast.send("email_updated".to_string());
+        let counts = get_email_stats(&state.pool).await.ok();
+        let _ = state.broadcast.send(WebSocketMessage {
+            event: "new_email".to_string(),
+            email: None,
+            counts,
+        });
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(WebError::NotFound)
@@ -319,7 +336,7 @@ async fn get_raw_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
-    let raw_data = get_raw_data_by_id(state.pool.as_ref(), &id)
+    let raw_data = get_raw_data_by_id(&state.pool, &id)
         .await?
         .ok_or(WebError::NotFound)?;
 
@@ -343,7 +360,7 @@ async fn get_attachment(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
-    let attachment = get_attachment_by_id(state.pool.as_ref(), &id)
+    let attachment = get_attachment_by_id(&state.pool, &id)
         .await?
         .ok_or(WebError::NotFound)?;
 
@@ -380,8 +397,9 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
 
     // Forward broadcast messages to the WebSocket client
     while let Ok(msg) = rx.recv().await {
+        let json_msg = serde_json::to_string(&msg).unwrap_or_else(|_| "{}".to_string());
         if sender
-            .send(axum::extract::ws::Message::Text(msg.into()))
+            .send(axum::extract::ws::Message::Text(json_msg.into()))
             .await
             .is_err()
         {
