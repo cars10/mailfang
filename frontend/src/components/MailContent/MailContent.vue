@@ -99,30 +99,23 @@
   const rawEmailContent = ref<string>('')
 
   const emailTabs = computed(() => {
-    return [
-      {
-        id: 'rendered',
-        label: 'Rendered',
-        visible: !!email.value?.rendered_body_html,
-      },
-      {
-        id: 'text',
-        label: 'Text',
-        visible: !!email.value?.body_text,
-      },
-      {
-        id: 'html',
-        label: 'HTML',
-        visible: !!email.value?.body_html,
-        icon: CodeBracketIcon,
-      },
-      {
-        id: 'raw',
-        label: 'Raw',
-        visible: true,
-        icon: CodeBracketIcon,
-      },
-    ]
+    const tabs = []
+
+    if (email.value?.rendered_body_html) {
+      tabs.push({ id: 'rendered', label: 'Rendered' })
+    }
+
+    if (email.value?.body_text) {
+      tabs.push({ id: 'text', label: 'Text' })
+    }
+
+    if (email.value?.body_html) {
+      tabs.push({ id: 'html', label: 'HTML', icon: CodeBracketIcon })
+    }
+
+    tabs.push({ id: 'raw', label: 'Raw', icon: CodeBracketIcon })
+
+    return tabs
   })
 
   const fetchEmail = async () => {

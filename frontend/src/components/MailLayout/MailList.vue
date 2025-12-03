@@ -12,7 +12,7 @@
           v-model="searchStore.query"
           type="text"
           placeholder="Search"
-          class="w-full p-2 rounded-md border border-gray-300"
+          class="w-full p-2 rounded-sm border border-gray-300"
           @keydown.escape="searchStore.query = ''"
         />
       </div>
@@ -41,7 +41,7 @@
             @click="openMail(mail.id)"
           >
             <div class="flex flex-col grow">
-              <div class="flex flex-row justify-between gap-4 items-center">
+              <div class="flex flex-row justify-between gap-4 items-start">
                 <div
                   :class="['line-clamp-2', { 'font-bold': !mail.read }]"
                   :title="mail.subject || '(No Subject)'"

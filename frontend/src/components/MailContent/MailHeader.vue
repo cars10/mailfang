@@ -4,7 +4,7 @@
       <h1 class="text-2xl text-gray-900">
         {{ email.subject || '(No Subject)' }}
       </h1>
-      <div class="text-gray-600 text-nowrap">
+      <div class="text-gray-600 text-nowrap font-mono">
         {{ formatFullDate(email.date || email.created_at) }}
       </div>
     </div>

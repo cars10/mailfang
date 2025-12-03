@@ -7,7 +7,7 @@
         :to="link.to"
         :title="link.label"
         active-class="text-indigo-700 bg-gray-200"
-        class="flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-md text-[#222] h-[40px]"
+        class="flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] h-[40px]"
       >
         <div class="flex flex-row gap-2 items-center">
           <component

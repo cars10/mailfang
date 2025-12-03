@@ -6,7 +6,7 @@
         Copy
       </button>
     </div>
-    <div class="bg-gray-900 text-gray-100 p-4 rounded-md overflow-auto">
+    <div class="bg-gray-900 text-gray-100 p-4 rounded-sm overflow-auto">
       <pre class="text-xs font-mono whitespace-pre-wrap wrap-break-word">{{
         content
       }}</pre>
