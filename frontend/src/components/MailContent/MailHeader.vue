@@ -4,8 +4,13 @@
       <h1 class="text-2xl text-gray-900">
         {{ email.subject || '(No Subject)' }}
       </h1>
-      <div class="text-gray-600 text-nowrap">
-        {{ formatFullDate(email.date || email.created_at) }}
+      <div class="text-gray-600 text-nowrap flex flex-col">
+        <div>
+          {{ formatFullDate(email.date || email.created_at) }}
+        </div>
+        <div>
+          {{ prettyBytes(email.size) }}
+        </div>
       </div>
     </div>
 
@@ -51,6 +56,7 @@
 <script setup lang="ts">
   import type { EmailRecord } from '@/types/email'
   import CopyBadge from '@/components/shared/CopyBadge/CopyBadge.vue'
+  import prettyBytes from 'pretty-bytes'
 
   defineProps<{ email: EmailRecord }>()
 

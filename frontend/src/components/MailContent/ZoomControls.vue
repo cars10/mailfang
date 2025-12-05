@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-row p-2">
+  <div class="flex flex-row p-2 gap-2">
     <button class="btn btn--icon" title="Zoom in" @click="zoomIn">
       <MagnifyingGlassPlusIcon class="w-5 h-5" />
     </button>

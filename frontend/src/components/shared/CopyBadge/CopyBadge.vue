@@ -7,7 +7,7 @@
     {{ text }}
     <ClipboardIcon
       v-if="!copied"
-      class="h-4 w-4 min-w-4 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-700"
+      class="h-4 w-4 min-w-4 opacity-0 group-hover:opacity-100 transition-opacity text-primary"
     />
     <CheckIcon
       v-else

@@ -7,6 +7,7 @@
   --default-font-optical-sizing: auto;
   --default-font-weight: 400;
   --default-font-style: normal;
+  --color-primary: var(--color-indigo-500);
 }
 
 html {
@@ -28,11 +29,11 @@ body {
 .btn {
   @apply text-sm;
   @apply font-medium;
-  @apply text-indigo-700;
+  @apply text-gray-600;
   @apply hover:shadow-sm;
   @apply hover:bg-gray-50;
   @apply border-gray-300;
-  @apply focus:border-indigo-700;
+  @apply focus:border-primary;
   @apply focus:outline-none;
   @apply rounded-sm;
   @apply flex;
@@ -53,5 +54,6 @@ body {
 }
 
 .btn--icon {
-  @apply p-1;
+  @apply p-2;
+  @apply border;
 }

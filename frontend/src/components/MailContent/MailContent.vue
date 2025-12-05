@@ -4,9 +4,12 @@
       v-if="viewMode === 'rendered' && email.body_html"
       class="flex flex-col grow max-w-full"
     >
-      <div class="flex flex-row border-b border-gray-200">
+      <div class="flex flex-row border-b border-gray-200 items-center gap-4">
         <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
-        <SecurityControls />
+        <Toggle
+          v-model="mailLayoutStore.blockExternalRequests"
+          label="Block external requests"
+        />
       </div>
 
       <div
@@ -53,8 +56,8 @@
   import type { ViewMode } from './MailView.vue'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import ZoomControls from './ZoomControls.vue'
-  import SecurityControls from './SecurityControls.vue'
   import MailHeaders from './MailHeaders.vue'
+  import Toggle from '@/components/shared/Toggle/Toggle.vue'
 
   const props = defineProps<{
     email: EmailRecord

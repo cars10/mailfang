@@ -38,7 +38,7 @@
           <div
             v-for="mail in emails"
             :key="mail.id"
-            :class="`border-b border-b-gray-300 border-l-4 ${route.params.id === mail.id ? 'border-l-indigo-500 bg-gray-50' : 'border-l-transparent'} p-4 gap-4 hover:cursor-pointer hover:bg-gray-100 w-full`"
+            :class="`border-b border-b-gray-300 border-l-4 ${route.params.id === mail.id ? 'border-l-primary bg-gray-50' : 'border-l-transparent'} p-4 gap-4 hover:cursor-pointer hover:bg-gray-100 w-full`"
             @click="openMail(mail.id)"
           >
             <div class="flex flex-col grow">

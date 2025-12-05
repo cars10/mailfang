@@ -6,17 +6,11 @@
         :key="link.to"
         :to="link.to"
         :title="link.label"
-        active-class="text-indigo-700 bg-gray-200"
+        active-class="text-primary bg-gray-200"
         class="flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] h-[40px]"
       >
         <div class="flex flex-row gap-2 items-center">
-          <component
-            :is="link.icon"
-            :class="[
-              'h-4',
-              isActive(link.to) ? 'text-indigo-700' : 'text-indigo-500',
-            ]"
-          />
+          <component :is="link.icon" :class="['h-4']" />
           <div v-if="!mailLayoutStore.sidebarCollapsed">
             {{ link.label }}
           </div>
@@ -34,7 +28,7 @@
       :class="`flex mt-4 ${mailLayoutStore.sidebarCollapsed ? 'justify-center' : 'justify-end'}`"
     >
       <button
-        class="hover:cursor-pointer bg-gray-200 shadow-md hover:text-indigo-600 p-1 rounded-xl z-10"
+        class="hover:cursor-pointer bg-gray-200 shadow-md hover:text-primary p-1 rounded-xl z-10"
         @click="
           mailLayoutStore.sidebarCollapsed = !mailLayoutStore.sidebarCollapsed
         "
@@ -51,7 +45,6 @@
 
 <script setup lang="ts">
   import { computed } from 'vue'
-  import { useRoute } from 'vue-router'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import {
     InboxIcon,
@@ -69,12 +62,7 @@
 
   const props = defineProps<Props>()
 
-  const route = useRoute()
   const mailLayoutStore = useMailLayoutStore()
-
-  const isActive = (path: string) => {
-    return route.path.startsWith(path)
-  }
 
   const links = computed(() => [
     {
