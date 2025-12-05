@@ -30,7 +30,7 @@
     </div>
 
     <div v-if="viewMode === 'html' && email.body_html" class="p-4 grow">
-      <CodeViewer :content="email.body_html" />
+      <CodeViewer :content="email.body_html" language="xml" />
     </div>
 
     <div v-if="viewMode === 'raw'" class="p-4 grow">
