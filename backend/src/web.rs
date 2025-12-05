@@ -3,6 +3,8 @@ use crate::db::{
     get_archived_emails, get_attachment_by_id, get_email_by_id, get_email_stats,
     get_emails_with_attachments, get_raw_data_by_id, get_unread_emails, mark_email_read,
 };
+use crate::entities::emails;
+use sea_orm::EntityTrait;
 use axum::{
     Router,
     extract::{Path, Query, State, ws::WebSocketUpgrade},
@@ -82,6 +84,11 @@ struct ArchiveRequest {
     archived: bool,
 }
 
+#[derive(Deserialize)]
+struct RenderedQueryParams {
+    block_external_requests: Option<bool>,
+}
+
 #[derive(serde::Serialize)]
 struct PaginationInfo {
     page: u64,
@@ -125,6 +132,7 @@ pub async fn run_web_server(
         .route("/api/emails/{id}/read", patch(mark_read))
         .route("/api/emails/{id}/archive", patch(archive_email_endpoint))
         .route("/api/emails/{id}/raw", get(get_raw_email))
+        .route("/api/emails/{id}/rendered", get(get_rendered_email))
         .route("/api/attachments/{id}", get(get_attachment))
         .route("/ws", get(websocket_handler));
 
@@ -421,6 +429,73 @@ async fn get_raw_email(
     Ok((headers, raw_data).into_response())
 }
 
+fn inject_csp_meta_tag(html: String) -> String {
+    // CSP that blocks all external resources but allows inline styles and data URIs
+    // This is necessary for email rendering which often uses inline CSS
+    // For srcdoc iframes, 'self' refers to an opaque origin, so we use 'none' to block everything
+    const CSP: &str = "default-src 'none'; img-src data:; script-src 'none'; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; media-src data:; base-uri 'none';";
+    let csp_meta = format!(
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"{}\">",
+        CSP
+    );
+
+    // Check if HTML already has a head tag (handle attributes)
+    let head_regex = regex::Regex::new(r"(?i)<head[^>]*>").unwrap();
+    let html_regex = regex::Regex::new(r"(?i)<html[^>]*>").unwrap();
+
+    if head_regex.is_match(&html) {
+        // Insert CSP meta tag right after <head> (or <head ...>)
+        head_regex
+            .replace(&html, |caps: &regex::Captures| {
+                format!("{}{}", &caps[0], csp_meta)
+            })
+            .to_string()
+    } else if html_regex.is_match(&html) {
+        // Insert head with CSP if html tag exists but no head
+        html_regex
+            .replace(&html, |caps: &regex::Captures| {
+                format!("{}<head>{}</head>", &caps[0], csp_meta)
+            })
+            .to_string()
+    } else {
+        // Wrap in html/head if neither exists
+        format!(
+            "<html><head>{}</head><body>{}</body></html>",
+            csp_meta, html
+        )
+    }
+}
+
+async fn get_rendered_email(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<RenderedQueryParams>,
+) -> Result<Response, WebError> {
+    let email_model = emails::Entity::find_by_id(id.clone())
+        .one(&*state.pool)
+        .await?
+        .ok_or(WebError::NotFound)?;
+
+    let rendered_html = email_model
+        .rendered_body_html
+        .ok_or(WebError::NotFound)?;
+
+    let block_external = params.block_external_requests.unwrap_or(true);
+    let html = if block_external {
+        inject_csp_meta_tag(rendered_html)
+    } else {
+        rendered_html
+    };
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html"),
+    );
+
+    Ok((headers, html).into_response())
+}
+
 async fn get_attachment(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -470,5 +545,91 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
         {
             break;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::inject_csp_meta_tag;
+
+    #[test]
+    fn test_inject_csp_with_existing_head() {
+        let html = "<html><head><title>Test</title></head><body>Content</body></html>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.contains("<head>"));
+        assert!(result.contains("<title>Test</title>"));
+        assert!(result.contains("Content"));
+    }
+
+    #[test]
+    fn test_inject_csp_with_head_attributes() {
+        let html = "<html><head lang=\"en\"><title>Test</title></head><body>Content</body></html>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.contains("lang=\"en\""));
+        assert!(result.contains("<title>Test</title>"));
+    }
+
+    #[test]
+    fn test_inject_csp_with_html_but_no_head() {
+        let html = "<html><body>Content</body></html>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.contains("<head>"));
+        assert!(result.contains("Content"));
+    }
+
+    #[test]
+    fn test_inject_csp_with_html_attributes_but_no_head() {
+        let html = "<html lang=\"en\"><body>Content</body></html>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.contains("lang=\"en\""));
+        assert!(result.contains("<head>"));
+        assert!(result.contains("Content"));
+    }
+
+    #[test]
+    fn test_inject_csp_with_fragment() {
+        let html = "<div>Just some content</div>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.starts_with("<html>"));
+        assert!(result.contains("<head>"));
+        assert!(result.contains("<body>"));
+        assert!(result.contains("Just some content"));
+        assert!(result.ends_with("</body></html>"));
+    }
+
+    #[test]
+    fn test_inject_csp_case_insensitive() {
+        let html = "<HTML><HEAD><title>Test</title></HEAD><BODY>Content</BODY></HTML>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("Content-Security-Policy"));
+        assert!(result.contains("<title>Test</title>"));
+    }
+
+    #[test]
+    fn test_inject_csp_contains_correct_policy() {
+        let html = "<html><head></head><body>Test</body></html>";
+        let result = inject_csp_meta_tag(html.to_string());
+
+        assert!(result.contains("default-src 'none'"));
+        assert!(result.contains("img-src data:"));
+        assert!(result.contains("script-src 'none'"));
+        assert!(result.contains("style-src 'unsafe-inline'"));
+        assert!(result.contains("font-src data:"));
+        assert!(result.contains("connect-src 'none'"));
+        assert!(result.contains("frame-src 'none'"));
+        assert!(result.contains("object-src 'none'"));
+        assert!(result.contains("media-src data:"));
+        assert!(result.contains("base-uri 'none'"));
     }
 }

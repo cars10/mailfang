@@ -2,6 +2,7 @@ use super::parser::{EmailAttachment, parse_email_details};
 use chrono::{DateTime, Utc};
 use futures::{SinkExt, StreamExt};
 use r2d2::Pool;
+use rand::Rng;
 use regex::Regex;
 use std::fmt;
 use std::net::SocketAddr;
@@ -10,7 +11,6 @@ use std::thread;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
 use uuid::Uuid;
-use rand::Rng;
 
 /// Decode base64 string, handling padding issues
 fn base64_decode(input: &str) -> std::result::Result<String, String> {
@@ -350,7 +350,8 @@ impl Session {
                         };
                         // Send base64-encoded challenge
                         use base64::Engine;
-                        let encoded = base64::engine::general_purpose::STANDARD.encode(challenge.as_bytes());
+                        let encoded =
+                            base64::engine::general_purpose::STANDARD.encode(challenge.as_bytes());
                         Ok(vec![format!("334 {}", encoded)])
                     }
                     _ => {
@@ -543,8 +544,10 @@ impl Session {
         use base64::Engine;
         let mut rng = rand::thread_rng();
         let random_bytes: Vec<u8> = (0..16).map(|_| rng.r#gen::<u8>()).collect();
-        let challenge = format!("<{}@mailswallow>", 
-            base64::engine::general_purpose::STANDARD.encode(&random_bytes));
+        let challenge = format!(
+            "<{}@mailswallow>",
+            base64::engine::general_purpose::STANDARD.encode(&random_bytes)
+        );
         challenge
     }
 
@@ -587,25 +590,25 @@ impl Session {
         } else {
             key_padded[..key.len()].copy_from_slice(key);
         }
-        
+
         // Inner pad: key ⊕ 0x36
         let mut ipad = key_padded;
         for byte in &mut ipad {
             *byte ^= 0x36;
         }
-        
+
         // Inner hash: MD5((K' ⊕ ipad) || challenge)
         let mut inner_data = Vec::with_capacity(64 + challenge.len());
         inner_data.extend_from_slice(&ipad);
         inner_data.extend_from_slice(challenge.as_bytes());
         let inner_hash = md5::compute(&inner_data);
-        
+
         // Outer pad: key ⊕ 0x5c
         let mut opad = key_padded;
         for byte in &mut opad {
             *byte ^= 0x5c;
         }
-        
+
         // Outer hash: MD5((K' ⊕ opad) || inner_hash)
         let mut outer_data = Vec::with_capacity(64 + 16);
         outer_data.extend_from_slice(&opad);
@@ -1093,25 +1096,25 @@ mod tests {
         } else {
             key_padded[..key.len()].copy_from_slice(key);
         }
-        
+
         // Inner pad: key ⊕ 0x36
         let mut ipad = key_padded;
         for byte in &mut ipad {
             *byte ^= 0x36;
         }
-        
+
         // Inner hash: MD5((K' ⊕ ipad) || message)
         let mut inner_data = Vec::with_capacity(64 + message.len());
         inner_data.extend_from_slice(&ipad);
         inner_data.extend_from_slice(message);
         let inner_hash = md5::compute(&inner_data);
-        
+
         // Outer pad: key ⊕ 0x5c
         let mut opad = key_padded;
         for byte in &mut opad {
             *byte ^= 0x5c;
         }
-        
+
         // Outer hash: MD5((K' ⊕ opad) || inner_hash)
         let mut outer_data = Vec::with_capacity(64 + 16);
         outer_data.extend_from_slice(&opad);
@@ -1131,18 +1134,18 @@ mod tests {
         let response = session.process_line("AUTH CRAM-MD5").unwrap();
         assert_eq!(response.len(), 1);
         assert!(response[0].starts_with("334 "));
-        
+
         // Extract challenge from response (base64 encoded)
         let challenge_encoded = &response[0][4..];
         let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
-        
+
         // Compute HMAC-MD5(challenge, password)
         let hmac_hex = compute_hmac_md5(b"pass", challenge.as_bytes());
-        
+
         // Create response: username<space>HMAC-MD5-hex
         let response_text = format!("user {}", hmac_hex);
         let response_encoded = engine.encode(response_text.as_bytes());
-        
+
         // Send response
         let auth_response = session.process_line(&response_encoded).unwrap();
         assert_eq!(auth_response, vec!["235 Authentication successful"]);
@@ -1167,18 +1170,18 @@ mod tests {
         let response = session.process_line("AUTH CRAM-MD5").unwrap();
         assert_eq!(response.len(), 1);
         assert!(response[0].starts_with("334 "));
-        
+
         // Extract challenge from response
         let challenge_encoded = &response[0][4..];
         let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
-        
+
         // Compute HMAC-MD5 with wrong password
         let hmac_hex = compute_hmac_md5(b"wrongpass", challenge.as_bytes());
-        
+
         // Create response with wrong password
         let response_text = format!("user {}", hmac_hex);
         let response_encoded = engine.encode(response_text.as_bytes());
-        
+
         // Send response
         let auth_response = session.process_line(&response_encoded).unwrap();
         assert_eq!(auth_response, vec!["535 Authentication failed"]);
@@ -1196,18 +1199,18 @@ mod tests {
         let response = session.process_line("AUTH CRAM-MD5").unwrap();
         assert_eq!(response.len(), 1);
         assert!(response[0].starts_with("334 "));
-        
+
         // Extract challenge from response
         let challenge_encoded = &response[0][4..];
         let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
-        
+
         // Compute HMAC-MD5 with correct password but wrong username
         let hmac_hex = compute_hmac_md5(b"pass", challenge.as_bytes());
-        
+
         // Create response with wrong username
         let response_text = format!("wronguser {}", hmac_hex);
         let response_encoded = engine.encode(response_text.as_bytes());
-        
+
         // Send response
         let auth_response = session.process_line(&response_encoded).unwrap();
         assert_eq!(auth_response, vec!["535 Authentication failed"]);
@@ -1225,18 +1228,18 @@ mod tests {
         let response = session.process_line("AUTH CRAM-MD5").unwrap();
         assert_eq!(response.len(), 1);
         assert!(response[0].starts_with("334 "));
-        
+
         // Extract challenge from response
         let challenge_encoded = &response[0][4..];
         let challenge = String::from_utf8(engine.decode(challenge_encoded).unwrap()).unwrap();
-        
+
         // Compute HMAC-MD5 with any password
         let hmac_hex = compute_hmac_md5(b"anypass", challenge.as_bytes());
-        
+
         // Create response with any credentials
         let response_text = format!("anyuser {}", hmac_hex);
         let response_encoded = engine.encode(response_text.as_bytes());
-        
+
         // Send response - should be accepted when no credentials configured
         let auth_response = session.process_line(&response_encoded).unwrap();
         assert_eq!(auth_response, vec!["235 Authentication successful"]);

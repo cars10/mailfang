@@ -24,7 +24,6 @@ pub struct EmailRecord {
     pub size: u64,
     pub body_text: String,
     pub body_html: String,
-    pub rendered_body_html: String,
     pub read: bool,
     pub archived: bool,
     pub attachments: Vec<EmailAttachmentRecord>,
@@ -247,7 +246,6 @@ fn email_model_to_record(
         size: email.size as u64,
         body_text: email.body_text.unwrap_or_default(),
         body_html: email.body_html.unwrap_or_default(),
-        rendered_body_html: email.rendered_body_html.unwrap_or_default(),
         read: email.read,
         archived: email.archived,
         attachments: attachments

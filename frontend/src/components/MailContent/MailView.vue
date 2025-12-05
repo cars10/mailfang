@@ -51,7 +51,7 @@
   const emailTabs = computed(() => {
     const tabs: Tab[] = []
 
-    if (email.value?.rendered_body_html) {
+    if (email.value?.body_html) {
       tabs.push({ id: 'rendered', label: 'Rendered' })
     }
 

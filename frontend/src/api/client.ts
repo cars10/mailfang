@@ -123,6 +123,18 @@ export class ApiClient {
 
     return response.text()
   }
+
+  // Rendered email HTML
+  async getRenderedEmail(id: string, blockExternal: boolean): Promise<string> {
+    const url = `${this.baseUrl}/api/emails/${id}/rendered?block_external_requests=${blockExternal}`
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`)
+    }
+
+    return response.text()
+  }
 }
 
 // Export a singleton instance

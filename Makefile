@@ -6,7 +6,7 @@ build:
 dev:
 	${compose} up
 
-ci: lint type-check format
+ci: lint type-check format test
 
 lint:
 	${compose} run --rm frontend npm run lint
@@ -18,6 +18,9 @@ format:
 
 type-check:
 	${compose} run --rm frontend npm run type-check
+
+test:
+	${compose} run --rm backend cargo test
 
 reset_db:
 	rm -f backend/mailswallow.db

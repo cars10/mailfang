@@ -21,7 +21,6 @@ export interface EmailRecord {
   size: number
   body_text: string
   body_html: string
-  rendered_body_html: string
   read: boolean
   archived: boolean
   attachments: EmailAttachment[]
