@@ -437,11 +437,11 @@ async fn get_attachment(
     );
 
     if let Some(filename) = &attachment.filename {
-        let content_disposition = format!("attachment; filename=\"{}\"", filename);
+        let content_disposition = format!("inline; filename=\"{}\"", filename);
         headers.insert(
             axum::http::header::CONTENT_DISPOSITION,
             HeaderValue::from_str(&content_disposition)
-                .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
+                .unwrap_or_else(|_| HeaderValue::from_static("inline")),
         );
     }
 

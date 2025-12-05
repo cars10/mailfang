@@ -4,6 +4,7 @@
       v-for="attachment in email.attachments"
       :key="attachment.id"
       :href="getAttachmentUrl(attachment.id)"
+      target="_blank"
       class="btn btn--small"
     >
       <PaperClipIcon class="h-4 w-4 text-gray-600" />
