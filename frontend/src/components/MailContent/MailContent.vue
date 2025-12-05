@@ -37,6 +37,8 @@
       <div v-if="loadingRaw" class="text-gray-500">Loading raw email...</div>
       <CodeViewer v-else :content="rawContent" />
     </div>
+
+    <MailHeaders v-if="viewMode === 'headers'" :email="email" />
   </div>
 </template>
 
@@ -49,6 +51,7 @@
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import ZoomControls from './ZoomControls.vue'
   import SecurityControls from './SecurityControls.vue'
+  import MailHeaders from './MailHeaders.vue'
 
   const props = defineProps<{
     email: EmailRecord

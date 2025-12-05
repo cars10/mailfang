@@ -14,7 +14,7 @@
       <MailAttachments v-if="email.attachments.length > 0" :email="email" />
 
       <div class="mt-4">
-        <Tabs v-model="viewMode" :tabs="emailTabs" />
+        <Tabs v-model="viewMode" :tabs="tabs" />
       </div>
 
       <MailContent :email="email" :view-mode="viewMode" />
@@ -41,31 +41,41 @@
   const error = ref<string | null>(null)
   const viewMode = ref<ViewMode>('rendered')
 
-  export type ViewMode = 'rendered' | 'html' | 'text' | 'raw'
-  type Tab = {
-    id: ViewMode
-    label: string
-    icon?: Component
-  }
+  export type ViewMode = 'rendered' | 'html' | 'text' | 'raw' | 'headers'
+  type Tab =
+    | {
+        id: ViewMode
+        label: string
+        icon?: Component
+      }
+    | {
+        id: 'spacer'
+        spacer: true
+      }
 
-  const emailTabs = computed(() => {
-    const tabs: Tab[] = []
+  const tabs = computed(() => {
+    const tabsList: Tab[] = []
 
+    // Left tabs
     if (email.value?.body_html) {
-      tabs.push({ id: 'rendered', label: 'Rendered' })
+      tabsList.push({ id: 'rendered', label: 'Rendered' })
     }
 
     if (email.value?.body_text) {
-      tabs.push({ id: 'text', label: 'Text' })
+      tabsList.push({ id: 'text', label: 'Text' })
     }
+
+    // Spacer
+    tabsList.push({ id: 'spacer', spacer: true })
 
     if (email.value?.body_html) {
-      tabs.push({ id: 'html', label: 'HTML', icon: CodeBracketIcon })
+      tabsList.push({ id: 'html', label: 'HTML', icon: CodeBracketIcon })
     }
 
-    tabs.push({ id: 'raw', label: 'Raw', icon: CodeBracketIcon })
+    tabsList.push({ id: 'headers', label: 'Headers', icon: CodeBracketIcon })
+    tabsList.push({ id: 'raw', label: 'Raw', icon: CodeBracketIcon })
 
-    return tabs
+    return tabsList
   })
 
   const fetchEmail = async () => {
@@ -90,7 +100,7 @@
     () => email.value,
     (newEmail: EmailRecord | null) => {
       if (newEmail) {
-        viewMode.value = emailTabs.value[0]?.id || 'raw'
+        viewMode.value = (tabs.value[0]?.id as ViewMode) || 'raw'
       }
     },
     { immediate: true }
