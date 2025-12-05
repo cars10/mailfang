@@ -7,7 +7,7 @@
   --default-font-optical-sizing: auto;
   --default-font-weight: 400;
   --default-font-style: normal;
-  --color-primary: var(--color-indigo-500);
+  --color-primary: var(--color-cyan-600);
 }
 
 html {
