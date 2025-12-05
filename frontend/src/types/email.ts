@@ -34,6 +34,7 @@ export interface EmailListRecord {
   from: string
   to: string[] // From "To" header
   read: boolean
+  archived: boolean
   has_attachments: boolean
 }
 

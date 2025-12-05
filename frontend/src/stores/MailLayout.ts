@@ -12,7 +12,7 @@ export const useMailLayoutStore = defineStore('mailLayout', {
     inboxWidth: 350,
     sidebarCollapsed: false,
     mailContentZoom: 1.0,
-    blockExternalRequests: true,
+    blockExternalRequests: false,
   }),
   persist: true,
 })

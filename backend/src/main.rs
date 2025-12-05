@@ -43,7 +43,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match db::save_email(&db, &message).await {
                 Ok(email_id) => {
                     let email_result = db::get_email_by_id(&db, &email_id).await;
-                    let counts_result = db::get_email_stats(&db).await;
 
                     let email_list_record = if let Ok(Some(email_record)) = email_result {
                         Some(db::EmailListRecord {
@@ -54,21 +53,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             from: email_record.from,
                             to: email_record.to,
                             read: email_record.read,
+                            archived: email_record.archived,
                             has_attachments: !email_record.attachments.is_empty(),
                         })
                     } else {
                         None
                     };
 
-                    let counts = counts_result.ok();
-
-                    broadcast
-                        .send(web::WebSocketMessage {
-                            event: web::WebSocketEvent::NewEmail,
-                            email: email_list_record,
-                            counts,
-                        })
-                        .ok();
+                    if let Some(email) = email_list_record {
+                        broadcast
+                            .send(web::WebSocketMessage {
+                                event: web::WebSocketEvent::NewMail,
+                                email: Some(email),
+                                email_id: None,
+                            })
+                            .ok();
+                    }
                 }
                 Err(e) => {
                     eprintln!("Failed to save email to database: {}", e);

@@ -58,15 +58,23 @@
 
   const shouldShowEmail = (email: EmailListRecord, path: string): boolean => {
     if (path.startsWith('/mails/inbox')) {
-      return true
+      return !email.archived
     } else if (path.startsWith('/mails/unread')) {
-      return !email.read
+      return !email.read && !email.archived
     } else if (path.startsWith('/mails/with-attachments')) {
-      return email.has_attachments
+      return email.has_attachments && !email.archived
     } else if (path.startsWith('/mails/archive')) {
-      return true
+      return email.archived
     }
     return true
+  }
+
+  const fetchCounts = async () => {
+    try {
+      counts.value = await apiClient.getSidebar()
+    } catch (err) {
+      console.error('Failed to fetch counts:', err)
+    }
   }
 
   const fetchMails = async (reset: boolean = true) => {
@@ -99,10 +107,8 @@
     }
   }
 
-  const handleNewEmail = (email: EmailListRecord, newCounts?: EmailCounts) => {
-    if (newCounts) {
-      counts.value = newCounts
-    }
+  const handleNewMail = (email: EmailListRecord) => {
+    fetchCounts()
 
     if (searchStore.query.trim()) {
       return
@@ -120,17 +126,8 @@
     emails.value = [email, ...emails.value]
   }
 
-  const handleEmailUpdated = (
-    email: EmailListRecord | null,
-    newCounts?: EmailCounts
-  ) => {
-    if (newCounts) {
-      counts.value = newCounts
-    }
-
-    if (!email) {
-      return
-    }
+  const handleEmailRead = (email: EmailListRecord) => {
+    fetchCounts()
 
     if (searchStore.query.trim()) {
       return
@@ -148,6 +145,45 @@
     }
   }
 
+  const handleEmailArchived = (email: EmailListRecord) => {
+    fetchCounts()
+
+    if (searchStore.query.trim()) {
+      return
+    }
+
+    const index = emails.value.findIndex(e => e.id === email.id)
+    if (index !== -1) {
+      // Email exists in current list
+      if (shouldShowEmail(email, route.path)) {
+        // Should be shown in current view, update it
+        emails.value[index] = email
+      } else {
+        // Should not be shown in current view, remove it
+        emails.value.splice(index, 1)
+      }
+    } else {
+      // Email doesn't exist in current list
+      if (shouldShowEmail(email, route.path)) {
+        // Should be shown in current view, add it
+        emails.value = [email, ...emails.value]
+      }
+    }
+  }
+
+  const handleEmailDeleted = (emailId: string) => {
+    fetchCounts()
+
+    if (searchStore.query.trim()) {
+      return
+    }
+
+    const index = emails.value.findIndex(e => e.id === emailId)
+    if (index !== -1) {
+      emails.value.splice(index, 1)
+    }
+  }
+
   const loadMore = async () => {
     if (!loadingMore.value && hasNextPage.value) {
       currentPage.value += 1
@@ -160,22 +196,18 @@
       onMessage: event => {
         try {
           const message = JSON.parse(event.data)
-          if (message.event === 'new_email') {
-            if (message.email) {
-              handleNewEmail(message.email, message.counts)
-            } else {
-              if (message.counts) {
-                counts.value = message.counts
-              }
-              fetchMails()
-            }
-          } else if (message.event === 'email_updated') {
-            handleEmailUpdated(message.email, message.counts)
+          console.log(message)
+          if (message.event === 'new_mail' && message.email) {
+            handleNewMail(message.email)
+          } else if (message.event === 'email_read' && message.email) {
+            handleEmailRead(message.email)
+          } else if (message.event === 'email_archived' && message.email) {
+            handleEmailArchived(message.email)
+          } else if (message.event === 'email_deleted' && message.email_id) {
+            handleEmailDeleted(message.email_id)
           }
-        } catch {
-          if (event.data === 'new_email' || event.data === 'email_updated') {
-            fetchMails()
-          }
+        } catch (err) {
+          console.error('Failed to parse websocket message:', err)
         }
       },
     },

@@ -1,4 +1,8 @@
-import type { EmailRecord, EmailListResponse } from '@/types/email'
+import type {
+  EmailRecord,
+  EmailListResponse,
+  EmailCounts,
+} from '@/types/email'
 
 export class ApiClient {
   private baseUrl: string
@@ -47,6 +51,10 @@ export class ApiClient {
     return this.request<EmailListResponse>(
       `/api/emails?page=${page}${searchParam}`
     )
+  }
+
+  async getSidebar(): Promise<EmailCounts> {
+    return this.request<EmailCounts>('/api/emails/sidebar')
   }
 
   async unread(page: number = 1, search?: string): Promise<EmailListResponse> {

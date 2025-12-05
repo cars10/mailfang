@@ -38,6 +38,7 @@ pub struct EmailListRecord {
     pub from: String,
     pub to: Vec<String>, // From "To" header
     pub read: bool,
+    pub archived: bool,
     pub has_attachments: bool,
 }
 
@@ -278,6 +279,7 @@ fn email_model_to_list_record(email: emails::Model) -> EmailListRecord {
         from: email.from,
         to,
         read: email.read,
+        archived: email.archived,
         has_attachments: email.has_attachments,
     }
 }
