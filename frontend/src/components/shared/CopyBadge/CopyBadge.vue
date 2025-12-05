@@ -17,21 +17,12 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { copyToClipboard } from '@/helpers/copy'
   import { ClipboardIcon, CheckIcon } from '@heroicons/vue/24/outline'
+  import { useCopy } from '@/composables/useCopy'
 
   const props = defineProps<{
     text: string
   }>()
 
-  const copied = ref(false)
-
-  const handleCopy = async () => {
-    await copyToClipboard(props.text)
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
-  }
+  const { copied, handleCopy } = useCopy(() => props.text)
 </script>

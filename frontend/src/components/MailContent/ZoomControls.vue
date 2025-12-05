@@ -1,15 +1,13 @@
 <template>
-  <div
-    class="p-2 bg-gray-200 absolute top-2 left-2 shadow-md rounded-sm flex gap-1 opacity-50 hover:opacity-100"
-  >
+  <div class="flex flex-row p-2">
     <button class="btn btn--icon" title="Zoom in" @click="zoomIn">
-      <PlusIcon class="w-4 h-4" />
+      <MagnifyingGlassPlusIcon class="w-5 h-5" />
     </button>
     <button class="btn btn--icon" title="Reset zoom" @click="resetZoom">
-      <ArrowsPointingOutIcon class="w-4 h-4" />
+      <MagnifyingGlassCircleIcon class="w-5 h-5" />
     </button>
     <button class="btn btn--icon" title="Zoom out" @click="zoomOut">
-      <MinusIcon class="w-4 h-4" />
+      <MagnifyingGlassMinusIcon class="w-5 h-5" />
     </button>
   </div>
 </template>
@@ -17,9 +15,9 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import {
-    PlusIcon,
-    MinusIcon,
-    ArrowsPointingOutIcon,
+    MagnifyingGlassPlusIcon,
+    MagnifyingGlassMinusIcon,
+    MagnifyingGlassCircleIcon,
   } from '@heroicons/vue/24/outline'
 
   const props = defineProps<{

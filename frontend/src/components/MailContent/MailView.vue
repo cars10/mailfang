@@ -24,8 +24,8 @@
 
 <script setup lang="ts">
   import { ref, computed, onMounted, watch } from 'vue'
-  import type { Component } from 'vue'
   import { useRoute } from 'vue-router'
+  import type { Tab } from '@/components/shared/Tabs/Tabs.vue'
   import { CodeBracketIcon } from '@heroicons/vue/24/outline'
   import { apiClient } from '@/api/client'
   import type { EmailRecord } from '@/types/email'
@@ -42,16 +42,6 @@
   const viewMode = ref<ViewMode>('rendered')
 
   export type ViewMode = 'rendered' | 'html' | 'text' | 'raw' | 'headers'
-  type Tab =
-    | {
-        id: ViewMode
-        label: string
-        icon?: Component
-      }
-    | {
-        id: 'spacer'
-        spacer: true
-      }
 
   const tabs = computed(() => {
     const tabsList: Tab[] = []
@@ -64,9 +54,6 @@
     if (email.value?.body_text) {
       tabsList.push({ id: 'text', label: 'Text' })
     }
-
-    // Spacer
-    tabsList.push({ id: 'spacer', spacer: true })
 
     if (email.value?.body_html) {
       tabsList.push({ id: 'html', label: 'HTML', icon: CodeBracketIcon })

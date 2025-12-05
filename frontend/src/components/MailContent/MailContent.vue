@@ -2,10 +2,13 @@
   <div class="flex flex-col grow">
     <div
       v-if="viewMode === 'rendered' && email.body_html"
-      class="flex flex-col grow max-w-full relative"
+      class="flex flex-col grow max-w-full"
     >
-      <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
-      <SecurityControls />
+      <div class="flex flex-row border-b border-gray-200">
+        <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
+        <SecurityControls />
+      </div>
+
       <div
         v-if="loadingRendered"
         class="flex items-center justify-center h-full"

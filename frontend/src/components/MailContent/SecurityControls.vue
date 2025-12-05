@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="p-2 bg-gray-200 absolute top-2 right-2 shadow-md rounded-sm flex gap-1 opacity-50 hover:opacity-100"
-  >
+  <div class="flex flex-row p-2">
     <button
       class="btn btn--icon"
       :title="

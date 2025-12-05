@@ -1,19 +1,19 @@
 <template>
   <div class="p-4 grow">
-    <div class="grid grid-cols-[auto_1fr] gap-x-2">
-      <template v-for="(values, key) in email.headers" :key="key">
-        <div class="flex items-center text-gray-700 select-text">
-          {{ key }}:
-        </div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge
-            v-if="values && values.length > 0"
-            :text="values.join(', ')"
-          />
-          <span v-else class="text-gray-400">—</span>
-        </div>
-      </template>
-    </div>
+    <table>
+      <tbody>
+        <template v-for="(values, key) in email.headers" :key="key">
+          <tr>
+            <td class="text-gray-700 select-text px-2 text-nowrap">
+              {{ key }}:
+            </td>
+            <td class="text-gray-600 select-text w-fit break-all px-2">
+              <CopyBadge :text="values.join(', ')" />
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
   </div>
 </template>
 
