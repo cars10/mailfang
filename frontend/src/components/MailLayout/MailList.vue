@@ -59,11 +59,7 @@
                   {{ formatDate(mail.date || mail.created_at) }}
                 </div>
               </div>
-              <div class="grid grid-cols-[auto_1fr] gap-x-2">
-                <div class="text-gray-500">From:</div>
-                <div class="truncate" :title="mail.from">
-                  {{ mail.from }}
-                </div>
+              <div class="flex flex-row gap-2">
                 <div class="text-gray-500">To:</div>
                 <div class="truncate" :title="mail.to.join(', ')">
                   {{ mail.to.join(', ') }}
