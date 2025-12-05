@@ -5,6 +5,7 @@
       :min-width="350"
       :max-width="800"
       :width="mailLayoutStore.inboxWidth || 350"
+      class="flex flex-col"
       @resize:end="handleResizeEnd"
     >
       <div class="p-4 border-b border-gray-300">

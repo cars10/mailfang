@@ -7,9 +7,12 @@
     {{ text }}
     <ClipboardIcon
       v-if="!copied"
-      class="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-700"
+      class="h-4 w-4 min-w-4 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-700"
     />
-    <CheckIcon v-else class="h-4 w-4 text-green-600 transition-opacity" />
+    <CheckIcon
+      v-else
+      class="h-4 w-4 min-w-4 text-green-600 transition-opacity"
+    />
   </div>
 </template>
 

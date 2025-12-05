@@ -32,7 +32,6 @@ body {
   @apply hover:shadow-sm;
   @apply hover:bg-gray-50;
   @apply border-gray-300;
-  @apply border;
   @apply focus:border-indigo-700;
   @apply focus:outline-none;
   @apply rounded-sm;
@@ -42,12 +41,17 @@ body {
   @apply cursor-pointer;
 }
 
-.btn:not(.btn--small) {
+.btn:not(.btn--small):not(.btn--icon) {
   @apply px-4;
   @apply py-2;
+  @apply border;
 }
 
 .btn--small {
   @apply px-2;
   @apply py-1;
+}
+
+.btn--icon {
+  @apply p-1;
 }

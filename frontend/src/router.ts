@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import MailContent from './components/MailContent/MailContent.vue'
+import MailView from './components/MailContent/MailView.vue'
 import SettingsList from './components/settings/SettingsList.vue'
 import MailLayout from './components/MailLayout/MailLayout.vue'
 
@@ -8,22 +8,22 @@ const routes = [
   {
     path: '/mails/inbox',
     component: MailLayout,
-    children: [{ path: ':id', component: MailContent }],
+    children: [{ path: ':id', component: MailView }],
   },
   {
     path: '/mails/unread',
     component: MailLayout,
-    children: [{ path: ':id', component: MailContent }],
+    children: [{ path: ':id', component: MailView }],
   },
   {
     path: '/mails/with-attachments',
     component: MailLayout,
-    children: [{ path: ':id', component: MailContent }],
+    children: [{ path: ':id', component: MailView }],
   },
   {
     path: '/mails/archive',
     component: MailLayout,
-    children: [{ path: ':id', component: MailContent }],
+    children: [{ path: ':id', component: MailView }],
   },
   { path: '/settings', component: SettingsList },
   { path: '/:pathMatch(.*)*', redirect: '/' },
