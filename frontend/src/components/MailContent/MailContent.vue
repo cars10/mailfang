@@ -4,12 +4,16 @@
       v-if="viewMode === 'rendered' && email.body_html"
       class="flex flex-col grow max-w-full"
     >
-      <div class="flex flex-row border-b border-gray-200 items-center gap-4">
-        <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
-        <Toggle
-          v-model="mailLayoutStore.blockExternalRequests"
-          label="Block external requests"
-        />
+      <div
+        class="flex flex-row border-b border-gray-200 items-center justify-between gap-4 p-2"
+      >
+        <div class="flex flex-row gap-4">
+          <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
+          <Toggle
+            v-model="mailLayoutStore.blockExternalRequests"
+            label="Block external requests"
+          />
+        </div>
         <div class="flex flex-row gap-1">
           <button
             class="btn btn--small"
@@ -21,6 +25,7 @@
             title="Mobile (375px)"
             @click="mailLayoutStore.screenSize = ScreenSize.Mobile"
           >
+            <DevicePhoneMobileIcon class="h-4 w-4" />
             Mobile
           </button>
           <button
@@ -33,6 +38,7 @@
             title="Tablet (768px)"
             @click="mailLayoutStore.screenSize = ScreenSize.Tablet"
           >
+            <DeviceTabletIcon class="h-4 w-4" />
             Tablet
           </button>
           <button
@@ -45,8 +51,18 @@
             title="Desktop (1024px)"
             @click="mailLayoutStore.screenSize = ScreenSize.Desktop"
           >
+            <ComputerDesktopIcon class="h-4 w-4" />
             Desktop
           </button>
+          <a
+            :href="`/emails/${email.id}/fullscreen`"
+            class="btn btn--small"
+            title="Open email in fullscreen"
+            target="_blank"
+          >
+            <ArrowTopRightOnSquareIcon class="h-4 w-4" />
+            New Tab
+          </a>
         </div>
       </div>
 
@@ -113,6 +129,12 @@
 
 <script setup lang="ts">
   import { ref, watch, computed } from 'vue'
+  import {
+    ArrowTopRightOnSquareIcon,
+    DevicePhoneMobileIcon,
+    DeviceTabletIcon,
+    ComputerDesktopIcon,
+  } from '@heroicons/vue/24/outline'
   import type { EmailRecord } from '@/types/email'
   import CodeViewer from '@/components/shared/CodeViewer/CodeViewer.vue'
   import { apiClient } from '@/api/client'
