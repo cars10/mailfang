@@ -10,6 +10,44 @@
           v-model="mailLayoutStore.blockExternalRequests"
           label="Block external requests"
         />
+        <div class="flex flex-row gap-1">
+          <button
+            class="btn btn--small"
+            :class="
+              mailLayoutStore.screenSize === ScreenSize.Mobile
+                ? 'bg-primary text-white border-primary'
+                : ''
+            "
+            title="Mobile (375px)"
+            @click="mailLayoutStore.screenSize = ScreenSize.Mobile"
+          >
+            Mobile
+          </button>
+          <button
+            class="btn btn--small"
+            :class="
+              mailLayoutStore.screenSize === ScreenSize.Tablet
+                ? 'bg-primary text-white border-primary'
+                : ''
+            "
+            title="Tablet (768px)"
+            @click="mailLayoutStore.screenSize = ScreenSize.Tablet"
+          >
+            Tablet
+          </button>
+          <button
+            class="btn btn--small"
+            :class="
+              mailLayoutStore.screenSize === ScreenSize.Desktop
+                ? 'bg-primary text-white border-primary'
+                : ''
+            "
+            title="Desktop (1024px)"
+            @click="mailLayoutStore.screenSize = ScreenSize.Desktop"
+          >
+            Desktop
+          </button>
+        </div>
       </div>
 
       <div
@@ -18,13 +56,30 @@
       >
         <div class="text-gray-500">Loading email content...</div>
       </div>
-      <div v-else class="h-full w-full overflow-auto">
-        <iframe
-          :key="renderedUrl"
-          :src="renderedUrl"
-          class="border-0 h-full w-full max-w-full"
-          :style="{ zoom: mailLayoutStore.mailContentZoom }"
-        ></iframe>
+      <div
+        v-else
+        class="h-full w-full overflow-auto py-1"
+        :class="mailLayoutStore.screenSize ? 'flex justify-center' : ''"
+      >
+        <div
+          class="h-full w-full"
+          :class="deviceMockupClass"
+          :style="iframeContainerStyle"
+        >
+          <iframe
+            :key="renderedUrl"
+            :src="renderedUrl"
+            class="border-0 h-full w-full bg-white"
+            :class="
+              mailLayoutStore.screenSize === ScreenSize.Mobile
+                ? 'rounded-4xl'
+                : mailLayoutStore.screenSize === ScreenSize.Tablet
+                  ? 'rounded-lg'
+                  : ''
+            "
+            :style="{ zoom: mailLayoutStore.mailContentZoom }"
+          ></iframe>
+        </div>
       </div>
     </div>
 
@@ -54,7 +109,7 @@
   import CodeViewer from '@/components/shared/CodeViewer/CodeViewer.vue'
   import { apiClient } from '@/api/client'
   import type { ViewMode } from './MailView.vue'
-  import { useMailLayoutStore } from '@/stores/MailLayout'
+  import { useMailLayoutStore, ScreenSize } from '@/stores/MailLayout'
   import ZoomControls from './ZoomControls.vue'
   import MailHeaders from './MailHeaders.vue'
   import Toggle from '@/components/shared/Toggle/Toggle.vue'
@@ -68,6 +123,33 @@
   const rawContent = ref<string>('')
   const loadingRaw = ref(false)
   const loadingRendered = ref(false)
+
+  // Computed property for iframe container style based on screen size
+  const iframeContainerStyle = computed(() => {
+    const screenSize = mailLayoutStore.screenSize
+    if (!screenSize) {
+      return {}
+    }
+    const maxWidths: Record<ScreenSize, string> = {
+      [ScreenSize.Mobile]: '375px',
+      [ScreenSize.Tablet]: '768px',
+      [ScreenSize.Desktop]: '1024px',
+    }
+    return {
+      maxWidth: maxWidths[screenSize],
+    }
+  })
+
+  // Computed property for device mockup styling
+  const deviceMockupClass = computed(() => {
+    const screenSize = mailLayoutStore.screenSize
+    if (screenSize === ScreenSize.Mobile) {
+      return 'bg-gray-900 rounded-[2.5rem] p-2 shadow-2xl border-4 border-gray-800'
+    } else if (screenSize === ScreenSize.Tablet) {
+      return 'bg-gray-900 rounded-xl p-3 shadow-2xl border-4 border-gray-800'
+    }
+    return ''
+  })
 
   // Computed property for iframe URL that updates when blocking state changes
   const renderedUrl = computed(() => {
