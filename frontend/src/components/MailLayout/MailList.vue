@@ -56,7 +56,7 @@
                     v-if="mail.has_attachments"
                     class="h-3 text-gray-500"
                   />
-                  {{ formatDate(mail.date || mail.created_at) }}
+                  {{ formatDate(mail.created_at) }}
                 </div>
               </div>
               <div class="flex flex-row gap-2">

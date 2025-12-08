@@ -9,13 +9,11 @@
     </div>
 
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
-      <MailHeader :email="email" />
+      <MailHeader :email="email" @update="fetchEmail" />
 
       <MailAttachments v-if="email.attachments.length > 0" :email="email" />
 
-      <div class="mt-4">
-        <Tabs v-model="viewMode" :tabs="tabs" />
-      </div>
+      <Tabs v-model="viewMode" :tabs="tabs" />
 
       <MailContent :email="email" :view-mode="viewMode" />
     </div>

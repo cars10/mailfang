@@ -29,23 +29,26 @@ body {
 .btn {
   @apply text-sm;
   @apply font-medium;
-  @apply text-gray-600;
+  @apply text-gray-700;
   @apply hover:shadow-sm;
+  @apply hover:text-gray-900;
   @apply hover:bg-gray-50;
   @apply border-gray-300;
   @apply focus:border-primary;
   @apply focus:outline-none;
+  @apply bg-white;
   @apply rounded-sm;
   @apply flex;
   @apply items-center;
   @apply gap-2;
   @apply cursor-pointer;
+  @apply shadow-xs;
+  @apply border;
 }
 
 .btn:not(.btn--small):not(.btn--icon) {
   @apply px-4;
   @apply py-2;
-  @apply border;
 }
 
 .btn--small {
@@ -55,5 +58,4 @@ body {
 
 .btn--icon {
   @apply p-2;
-  @apply border;
 }
