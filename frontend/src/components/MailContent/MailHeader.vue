@@ -9,7 +9,7 @@
           {{ formatFullDate(email.date || email.created_at) }}
         </div>
         <div>
-          {{ prettyBytes(email.size) }}
+          {{ formatSize(email.size) }}
         </div>
       </div>
     </div>
@@ -59,6 +59,10 @@
   import prettyBytes from 'pretty-bytes'
 
   defineProps<{ email: EmailRecord }>()
+
+  const formatSize = (size: number) => {
+    return prettyBytes(size)
+  }
 
   const formatFullDate = (dateString: string) => {
     const date = new Date(dateString)

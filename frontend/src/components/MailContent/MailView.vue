@@ -55,11 +55,12 @@
       tabsList.push({ id: 'text', label: 'Text' })
     }
 
+    tabsList.push({ id: 'headers', label: 'Headers', icon: CodeBracketIcon })
+
     if (email.value?.body_html) {
       tabsList.push({ id: 'html', label: 'HTML', icon: CodeBracketIcon })
     }
 
-    tabsList.push({ id: 'headers', label: 'Headers', icon: CodeBracketIcon })
     tabsList.push({ id: 'raw', label: 'Raw', icon: CodeBracketIcon })
 
     return tabsList

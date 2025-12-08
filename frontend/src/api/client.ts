@@ -1,8 +1,4 @@
-import type {
-  EmailRecord,
-  EmailListResponse,
-  EmailCounts,
-} from '@/types/email'
+import type { EmailRecord, EmailListResponse, EmailCounts } from '@/types/email'
 
 export class ApiClient {
   private baseUrl: string

@@ -17,4 +17,3 @@ export function useCopy(getText: () => string) {
     handleCopy,
   }
 }
-

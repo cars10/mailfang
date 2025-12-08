@@ -4,7 +4,6 @@ use crate::db::{
     get_emails_with_attachments, get_raw_data_by_id, get_unread_emails, mark_email_read,
 };
 use crate::entities::emails;
-use sea_orm::EntityTrait;
 use axum::{
     Router,
     extract::{Path, Query, State, ws::WebSocketUpgrade},
@@ -13,6 +12,7 @@ use axum::{
     routing::{get, patch},
 };
 use futures_util::{SinkExt, StreamExt};
+use sea_orm::EntityTrait;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -484,9 +484,7 @@ async fn get_rendered_email(
         .await?
         .ok_or(WebError::NotFound)?;
 
-    let rendered_html = email_model
-        .rendered_body_html
-        .ok_or(WebError::NotFound)?;
+    let rendered_html = email_model.rendered_body_html.ok_or(WebError::NotFound)?;
 
     let block_external = params.block_external_requests.unwrap_or(true);
     let html = if block_external {
