@@ -58,25 +58,33 @@
       </div>
       <div
         v-else
-        class="h-full w-full overflow-auto py-1"
-        :class="mailLayoutStore.screenSize ? 'flex justify-center' : ''"
+        :class="[
+          'w-full overflow-auto py-1',
+          mailLayoutStore.screenSize === ScreenSize.Mobile ? '' : 'h-full',
+          mailLayoutStore.screenSize ? 'flex justify-center' : '',
+        ]"
       >
         <div
-          class="h-full w-full"
-          :class="deviceMockupClass"
+          :class="[
+            deviceMockupClass,
+            mailLayoutStore.screenSize === ScreenSize.Mobile
+              ? ''
+              : 'h-full w-full',
+          ]"
           :style="iframeContainerStyle"
         >
           <iframe
             :key="renderedUrl"
             :src="renderedUrl"
-            class="border-0 h-full w-full bg-white"
-            :class="
+            :class="[
+              'border-0 bg-white',
               mailLayoutStore.screenSize === ScreenSize.Mobile
-                ? 'rounded-4xl'
-                : mailLayoutStore.screenSize === ScreenSize.Tablet
-                  ? 'rounded-lg'
-                  : ''
-            "
+                ? 'rounded-4xl w-full h-full'
+                : 'h-full w-full',
+              mailLayoutStore.screenSize === ScreenSize.Tablet
+                ? 'rounded-lg'
+                : '',
+            ]"
             :style="{ zoom: mailLayoutStore.mailContentZoom }"
           ></iframe>
         </div>
@@ -135,9 +143,16 @@
       [ScreenSize.Tablet]: '768px',
       [ScreenSize.Desktop]: '1024px',
     }
-    return {
+    const style: Record<string, string> = {
       maxWidth: maxWidths[screenSize],
     }
+    if (screenSize === ScreenSize.Mobile) {
+      style.width = '375px'
+      style.aspectRatio = '9/18'
+      style.height = 'auto'
+      style.flexShrink = '0'
+    }
+    return style
   })
 
   // Computed property for device mockup styling
