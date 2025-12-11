@@ -9,12 +9,10 @@
       @resize:end="handleResizeEnd"
     >
       <div class="p-4 border-b border-gray-300">
-        <input
+        <TextInput
           v-model="searchStore.query"
-          type="text"
           placeholder="Search"
-          class="w-full p-2 rounded-sm border border-gray-300"
-          @keydown.escape="searchStore.query = ''"
+          :icon="MagnifyingGlassIcon"
         />
       </div>
 
@@ -77,10 +75,11 @@
   import { ref, onMounted, onUnmounted } from 'vue'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import { useSearchStore } from '@/stores/Search'
-  import { PaperClipIcon } from '@heroicons/vue/24/outline'
+  import { PaperClipIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
   import VueResizable from 'vue-resizable'
   import { useRouter, useRoute } from 'vue-router'
   import type { EmailListRecord } from '@/types/email'
+  import TextInput from '@/components/shared/TextInput/TextInput.vue'
 
   interface Props {
     emails: EmailListRecord[]
