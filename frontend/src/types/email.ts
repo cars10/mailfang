@@ -38,8 +38,6 @@ export interface EmailListRecord {
 
 export interface EmailCounts {
   inbox: number
-  unread: number
-  with_attachments: number
 }
 
 export interface PaginationInfo {

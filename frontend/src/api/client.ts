@@ -53,23 +53,6 @@ export class ApiClient {
     return this.request<EmailCounts>('/api/emails/sidebar')
   }
 
-  async unread(page: number = 1, search?: string): Promise<EmailListResponse> {
-    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(
-      `/api/emails/unread?page=${page}${searchParam}`
-    )
-  }
-
-  async withAttachments(
-    page: number = 1,
-    search?: string
-  ): Promise<EmailListResponse> {
-    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(
-      `/api/emails/with-attachments?page=${page}${searchParam}`
-    )
-  }
-
   // Single email operations
   async getEmail(id: string): Promise<EmailRecord> {
     return this.request<EmailRecord>(`/api/emails/${id}`)

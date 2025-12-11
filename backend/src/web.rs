@@ -1,7 +1,6 @@
 use crate::db::{
     DbPool, delete_all_emails, delete_email_by_id, get_all_emails, get_attachment_by_id,
-    get_email_by_id, get_email_stats, get_emails_with_attachments, get_raw_data_by_id,
-    get_unread_emails, mark_email_read,
+    get_email_by_id, get_email_stats, get_raw_data_by_id, mark_email_read,
 };
 use crate::entities::emails;
 use axum::{
@@ -116,11 +115,6 @@ pub async fn run_web_server(
         .route("/health", get(health_check))
         .route("/api/emails", get(list_emails).delete(delete_all))
         .route("/api/emails/sidebar", get(get_email_stats_endpoint))
-        .route("/api/emails/unread", get(list_unread_emails))
-        .route(
-            "/api/emails/with-attachments",
-            get(list_emails_with_attachments),
-        )
         .route("/api/emails/{id}", get(get_email).delete(delete_email))
         .route("/api/emails/{id}/raw", get(get_raw_email))
         .route("/api/emails/{id}/rendered", get(get_rendered_email))
@@ -245,60 +239,6 @@ async fn delete_email(
 async fn delete_all(State(state): State<AppState>) -> Result<StatusCode, WebError> {
     delete_all_emails(&state.pool).await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-async fn list_unread_emails(
-    State(state): State<AppState>,
-    Query(params): Query<ListQueryParams>,
-) -> Result<Json<EmailListResponse>, WebError> {
-    let page = params.page.unwrap_or(1);
-    let per_page = 10;
-    let (emails, total_pages) = get_unread_emails(
-        &state.pool,
-        params.sort.as_deref(),
-        params.order.as_deref(),
-        params.search.as_deref(),
-        page,
-        per_page,
-    )
-    .await?;
-    let counts = get_email_stats(&state.pool).await?;
-    Ok(Json(EmailListResponse {
-        emails,
-        counts,
-        pagination: PaginationInfo {
-            page,
-            per_page,
-            total_pages,
-        },
-    }))
-}
-
-async fn list_emails_with_attachments(
-    State(state): State<AppState>,
-    Query(params): Query<ListQueryParams>,
-) -> Result<Json<EmailListResponse>, WebError> {
-    let page = params.page.unwrap_or(1);
-    let per_page = 10;
-    let (emails, total_pages) = get_emails_with_attachments(
-        &state.pool,
-        params.sort.as_deref(),
-        params.order.as_deref(),
-        params.search.as_deref(),
-        page,
-        per_page,
-    )
-    .await?;
-    let counts = get_email_stats(&state.pool).await?;
-    Ok(Json(EmailListResponse {
-        emails,
-        counts,
-        pagination: PaginationInfo {
-            page,
-            per_page,
-            total_pages,
-        },
-    }))
 }
 
 async fn get_raw_email(

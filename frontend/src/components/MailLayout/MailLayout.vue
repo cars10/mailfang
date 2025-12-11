@@ -32,8 +32,6 @@
   const emails = ref<EmailListRecord[]>([])
   const counts = ref<EmailCounts>({
     inbox: 0,
-    unread: 0,
-    with_attachments: 0,
   })
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -41,28 +39,6 @@
   const currentPage = ref(1)
   const hasNextPage = ref(false)
   let searchTimeout: ReturnType<typeof setTimeout> | null = null
-
-  const getApiMethod = (path: string, page: number = 1, search?: string) => {
-    if (path.startsWith('/mails/inbox')) {
-      return apiClient.inbox(page, search)
-    } else if (path.startsWith('/mails/unread')) {
-      return apiClient.unread(page, search)
-    } else if (path.startsWith('/mails/with-attachments')) {
-      return apiClient.withAttachments(page, search)
-    }
-    return apiClient.inbox(page, search)
-  }
-
-  const shouldShowEmail = (email: EmailListRecord, path: string): boolean => {
-    if (path.startsWith('/mails/inbox')) {
-      return true
-    } else if (path.startsWith('/mails/unread')) {
-      return !email.read
-    } else if (path.startsWith('/mails/with-attachments')) {
-      return email.has_attachments
-    }
-    return true
-  }
 
   const fetchCounts = async () => {
     try {
@@ -83,7 +59,7 @@
       }
       error.value = null
       const search = searchStore.query.trim() || undefined
-      const response = await getApiMethod(route.path, currentPage.value, search)
+      const response = await apiClient.inbox(currentPage.value, search)
       if (reset) {
         emails.value = response.emails
       } else {
@@ -109,10 +85,6 @@
       return
     }
 
-    if (!shouldShowEmail(email, route.path)) {
-      return
-    }
-
     const existingIds = new Set(emails.value.map(e => e.id))
     if (existingIds.has(email.id)) {
       return
@@ -130,12 +102,8 @@
 
     const index = emails.value.findIndex(e => e.id === email.id)
     if (index !== -1) {
-      if (shouldShowEmail(email, route.path)) {
-        emails.value[index] = email
-      } else {
-        emails.value.splice(index, 1)
-      }
-    } else if (shouldShowEmail(email, route.path)) {
+      emails.value[index] = email
+    } else {
       emails.value = [email, ...emails.value]
     }
   }
@@ -202,7 +170,7 @@
   watch(
     () => route.path,
     newPath => {
-      if (!newPath.match(/\/mails\/(inbox|unread|with-attachments)\/[^/]+$/)) {
+      if (!newPath.match(/\/mails\/inbox\/[^/]+$/)) {
         searchStore.query = ''
         fetchMails()
       }

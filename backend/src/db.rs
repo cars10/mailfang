@@ -3,7 +3,7 @@ use crate::smtp::Email;
 use chrono::{DateTime, Utc};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, Insert, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
+    QueryFilter, QueryOrder, Set, TransactionTrait,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -345,44 +345,6 @@ pub async fn mark_email_read(
     Ok(1)
 }
 
-pub async fn get_unread_emails(
-    db: &DatabaseConnection,
-    sort: Option<&str>,
-    order: Option<&str>,
-    search: Option<&str>,
-    page: u64,
-    per_page: u64,
-) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find().filter(emails::Column::Read.eq(false));
-    let query = apply_search_filter(query, search);
-    let query = apply_sorting(query, sort, order);
-    let paginator = query.paginate(db, per_page);
-    let num_pages = paginator.num_pages().await?;
-    let email_models = paginator.fetch_page(page - 1).await?;
-    let records = convert_emails_to_list_records(email_models);
-    Ok((records, num_pages))
-}
-
-pub async fn get_emails_with_attachments(
-    db: &DatabaseConnection,
-    sort: Option<&str>,
-    order: Option<&str>,
-    search: Option<&str>,
-    page: u64,
-    per_page: u64,
-) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find()
-        .inner_join(email_attachments::Entity)
-        .distinct();
-    let query = apply_search_filter(query, search);
-    let query = apply_sorting(query, sort, order);
-    let paginator = query.paginate(db, per_page);
-    let num_pages = paginator.num_pages().await?;
-    let email_models = paginator.fetch_page(page - 1).await?;
-    let records = convert_emails_to_list_records(email_models);
-    Ok((records, num_pages))
-}
-
 pub async fn get_attachment_by_id(
     db: &DatabaseConnection,
     attachment_id: &str,
@@ -417,28 +379,10 @@ pub async fn get_raw_data_by_id(
 #[derive(serde::Serialize, Clone)]
 pub struct EmailStats {
     pub inbox: u64,
-    pub unread: u64,
-    pub with_attachments: u64,
 }
 
 pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbErr> {
     let inbox_count = emails::Entity::find().count(db).await?;
 
-    let unread_count = emails::Entity::find()
-        .filter(emails::Column::Read.eq(false))
-        .count(db)
-        .await?;
-
-    // Count emails with attachments
-    let with_attachments_count = emails::Entity::find()
-        .inner_join(email_attachments::Entity)
-        .distinct()
-        .count(db)
-        .await?;
-
-    Ok(EmailStats {
-        inbox: inbox_count,
-        unread: unread_count,
-        with_attachments: with_attachments_count,
-    })
+    Ok(EmailStats { inbox: inbox_count })
 }

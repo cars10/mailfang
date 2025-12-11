@@ -48,8 +48,6 @@
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import {
     InboxIcon,
-    EnvelopeIcon,
-    PaperClipIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
   } from '@heroicons/vue/24/outline'
@@ -69,18 +67,6 @@
       icon: InboxIcon,
       label: 'Inbox',
       count: props.counts.inbox,
-    },
-    {
-      to: '/mails/unread',
-      icon: EnvelopeIcon,
-      label: 'Unread',
-      count: props.counts.unread,
-    },
-    {
-      to: '/mails/with-attachments',
-      icon: PaperClipIcon,
-      label: 'With attachments',
-      count: props.counts.with_attachments,
     },
   ])
 </script>
