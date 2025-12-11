@@ -328,8 +328,9 @@ async fn get_raw_email(
 fn inject_csp_meta_tag(html: String) -> String {
     // CSP that blocks all external resources but allows inline styles and data URIs
     // This is necessary for email rendering which often uses inline CSS
-    // For srcdoc iframes, 'self' refers to an opaque origin, so we use 'none' to block everything
-    const CSP: &str = "default-src 'none'; img-src data:; script-src 'none'; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; media-src data:; base-uri 'none';";
+    // 'self' allows same-origin requests (e.g., CID images served via /api/attachments/{id})
+    // while still blocking remote content (http://, https://, etc.)
+    const CSP: &str = "default-src 'none'; img-src 'self' data:; script-src 'none'; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; media-src data:; base-uri 'none';";
     let csp_meta = format!(
         "<meta http-equiv=\"Content-Security-Policy\" content=\"{}\">",
         CSP
@@ -524,7 +525,7 @@ mod tests {
         let result = inject_csp_meta_tag(html.to_string());
 
         assert!(result.contains("default-src 'none'"));
-        assert!(result.contains("img-src data:"));
+        assert!(result.contains("img-src 'self' data:"));
         assert!(result.contains("script-src 'none'"));
         assert!(result.contains("style-src 'unsafe-inline'"));
         assert!(result.contains("font-src data:"));
