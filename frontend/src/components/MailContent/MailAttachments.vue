@@ -8,7 +8,7 @@
       class="btn btn--small"
     >
       <PaperClipIcon class="h-4 w-4 text-gray-600" />
-      <span>{{ attachment.filename }}</span>
+      <span>{{ attachment.filename || 'unnamed' }}</span>
       <span class="text-xs text-gray-600"
         >({{ formatSize(attachment.size) }})</span
       >
