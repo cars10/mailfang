@@ -26,50 +26,63 @@
       </div>
     </div>
 
-    <div class="text-gray-600 text-nowrap flex flex-row justify-between">
+    <div class="flex flex-row gap-2 justify-between">
       <div>
-        {{ formatFullDate(email.created_at) }}
+        <div class="grid grid-cols-[auto_1fr] gap-x-2">
+          <template v-if="email.from">
+            <div class="flex items-center text-gray-500 select-text">From:</div>
+            <div class="text-gray-600 select-text w-fit">
+              <CopyBadge :text="email.from" />
+            </div>
+          </template>
+
+          <template v-if="email.to.length > 0">
+            <div class="flex items-center text-gray-500 select-text">To:</div>
+            <div class="text-gray-600 select-text w-fit">
+              <CopyBadge :text="email.to.join(', ')" />
+            </div>
+          </template>
+
+          <template v-if="email.headers?.Cc">
+            <div class="flex items-center text-gray-500 select-text">CC:</div>
+            <div class="text-gray-600 select-text w-fit">
+              <CopyBadge :text="email.headers?.Cc?.join(', ') || ''" />
+            </div>
+          </template>
+
+          <template v-if="email.headers?.Bcc">
+            <div class="flex items-center text-gray-500 select-text">BCC:</div>
+            <div class="text-gray-600 select-text w-fit">
+              <CopyBadge :text="email.headers?.Bcc?.join(', ') || ''" />
+            </div>
+          </template>
+
+          <template v-if="email.headers?.['Reply-To']">
+            <div class="flex items-center text-gray-500 select-text">
+              Reply-To:
+            </div>
+            <div class="text-gray-600 select-text w-fit">
+              <CopyBadge
+                :text="email.headers?.['Reply-To']?.join(', ') || ''"
+              />
+            </div>
+          </template>
+        </div>
       </div>
+
       <div>
-        {{ formatSize(email.size) }}
+        <div class="grid grid-cols-[auto_1fr] gap-x-2">
+          <div class="flex items-center text-gray-500 select-text">Date:</div>
+          <div class="text-gray-600 select-text w-fit">
+            <CopyBadge :text="formatFullDate(email.created_at)" />
+          </div>
+
+          <div class="flex items-center text-gray-500 select-text">Size:</div>
+          <div class="text-gray-600 select-text w-fit">
+            <CopyBadge :text="formatSize(email.size)" />
+          </div>
+        </div>
       </div>
-    </div>
-
-    <div class="grid grid-cols-[auto_1fr] gap-x-2">
-      <template v-if="email.from">
-        <div class="flex items-center text-gray-500 select-text">From:</div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.from" />
-        </div>
-      </template>
-
-      <template v-if="email.to.length > 0">
-        <div class="flex items-center text-gray-500 select-text">To:</div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.to.join(', ')" />
-        </div>
-      </template>
-
-      <template v-if="email.headers?.Cc">
-        <div class="flex items-center text-gray-500 select-text">CC:</div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.headers?.Cc?.join(', ') || ''" />
-        </div>
-      </template>
-
-      <template v-if="email.headers?.Bcc">
-        <div class="flex items-center text-gray-500 select-text">BCC:</div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.headers?.Bcc?.join(', ') || ''" />
-        </div>
-      </template>
-
-      <template v-if="email.headers?.['Reply-To']">
-        <div class="flex items-center text-gray-500 select-text">Reply-To:</div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.headers?.['Reply-To']?.join(', ') || ''" />
-        </div>
-      </template>
     </div>
   </div>
 </template>
