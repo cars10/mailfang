@@ -19,7 +19,6 @@
 
 <script setup lang="ts">
   import { ref, onMounted, watch } from 'vue'
-  import { useRoute } from 'vue-router'
   import { useWebSocket } from '@/composables/useWebSocket'
   import { apiClient } from '@/api/client'
   import { useSearchStore } from '@/stores/Search'
@@ -27,7 +26,6 @@
   import MailSidebar from './MailSidebar.vue'
   import MailList from './MailList.vue'
 
-  const route = useRoute()
   const searchStore = useSearchStore()
   const emails = ref<EmailListRecord[]>([])
   const counts = ref<EmailCounts>({
@@ -164,16 +162,6 @@
       searchTimeout = setTimeout(() => {
         fetchMails()
       }, 300)
-    }
-  )
-
-  watch(
-    () => route.path,
-    newPath => {
-      if (!newPath.match(/\/mails\/inbox\/[^/]+$/)) {
-        searchStore.query = ''
-        fetchMails()
-      }
     }
   )
 </script>

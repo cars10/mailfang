@@ -1,10 +1,6 @@
 <template>
   <div class="h-full">
-    <iframe
-      :key="renderedUrl"
-      :src="renderedUrl"
-      class="border-0 bg-white h-full w-full"
-    ></iframe>
+    <iframe :src="renderedUrl" class="border-0 bg-white h-full w-full"></iframe>
   </div>
 </template>
 

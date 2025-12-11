@@ -146,9 +146,6 @@
   }
 
   const openMail = (id: string) => {
-    const currentPath = router.currentRoute.value.path
-    // Extract the base path (e.g., /mails/inbox from /mails/inbox or /mails/inbox/1)
-    const basePath = currentPath.split('/').slice(0, 3).join('/')
-    router.push(`${basePath}/${id}`)
+    router.push(`/emails/inbox/${id}`)
   }
 </script>

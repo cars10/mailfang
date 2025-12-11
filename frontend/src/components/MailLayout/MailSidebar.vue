@@ -78,7 +78,7 @@
   )
   const links = computed(() => [
     {
-      to: '/mails/inbox',
+      to: '/emails/inbox',
       icon: InboxIcon,
       label: 'Inbox',
       count: props.counts.inbox,
@@ -99,7 +99,7 @@
     try {
       loadingDeleteAll.value = true
       await apiClient.deleteAll()
-      router.push('/mails/inbox')
+      router.push('/emails/inbox')
       window.location.reload()
     } catch (err) {
       console.error('Failed to delete all emails:', err)

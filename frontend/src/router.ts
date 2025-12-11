@@ -5,9 +5,9 @@ import SettingsList from './components/settings/SettingsList.vue'
 import MailLayout from './components/MailLayout/MailLayout.vue'
 
 const routes = [
-  { path: '/', redirect: '/mails/inbox' },
+  { path: '/', redirect: '/emails/inbox' },
   {
-    path: '/mails/inbox',
+    path: '/emails/inbox',
     component: MailLayout,
     children: [{ path: ':id', component: MailView }],
   },
