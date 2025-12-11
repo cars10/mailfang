@@ -105,7 +105,10 @@ export class ApiClient {
   }
 
   // Rendered email HTML
-  async getRenderedEmail(id: string, allowRemoteContent: boolean): Promise<string> {
+  async getRenderedEmail(
+    id: string,
+    allowRemoteContent: boolean
+  ): Promise<string> {
     const url = `${this.baseUrl}/api/emails/${id}/rendered?allow_remote_content=${allowRemoteContent}`
     const response = await fetch(url)
 
