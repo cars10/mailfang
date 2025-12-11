@@ -3,7 +3,7 @@ compose = docker compose -f compose.yml
 build:
 	${compose} build
 
-dev:
+dev: build
 	${compose} up
 
 ci: lint type-check format test

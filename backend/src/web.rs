@@ -17,6 +17,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
+use tracing::info;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub enum WebError {
@@ -119,7 +121,10 @@ pub async fn run_web_server(
         .route("/api/emails/{id}/raw", get(get_raw_email))
         .route("/api/emails/{id}/rendered", get(get_rendered_email))
         .route("/api/attachments/{id}", get(get_attachment))
-        .route("/ws", get(websocket_handler));
+        .route("/ws", get(websocket_handler))
+        .layer(
+            axum::middleware::from_fn(log_http_request)
+        );
 
     // Only serve static files if STATIC_DIR is provided (production mode)
     if let Some(static_dir) = static_dir {
@@ -139,7 +144,7 @@ pub async fn run_web_server(
     let app = app.with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    println!("Web server listening on {}", addr);
+    info!(component = "web", "Web server listening on {}", addr);
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())
 }
@@ -357,6 +362,30 @@ async fn get_attachment(
     }
 
     Ok((headers, attachment.data).into_response())
+}
+
+async fn log_http_request(
+    request: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let method = request.method().clone();
+    let uri = request.uri().clone();
+    let start = Instant::now();
+    
+    let response = next.run(request).await;
+    let status = response.status();
+    let latency = start.elapsed();
+    
+    info!(
+        component = "web",
+        method = %method,
+        uri = %uri,
+        status = status.as_u16(),
+        latency_ms = latency.as_millis(),
+        "HTTP request"
+    );
+    
+    response
 }
 
 async fn health_check() -> StatusCode {

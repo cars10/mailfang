@@ -1,11 +1,13 @@
-use mailfang_backend::{db, migration, smtp, web};
+use mailfang_backend::{db, logging, migration, smtp, web};
 use sea_orm_migration::prelude::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tracing::{info, error};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    logging::init();
     let smtp_port = std::env::var("SMTP_PORT")
         .unwrap_or_else(|_| "2525".to_string())
         .parse::<u16>()?;
@@ -29,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     migration::Migrator::up(&*db, None).await?;
-    println!("Database migrations completed");
+    info!(component = "main", "Database migrations completed");
 
     let (broadcast_tx, _) = broadcast::channel::<web::WebSocketMessage>(100);
 
@@ -42,6 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::spawn(async move {
             match db::save_email(&db, &message).await {
                 Ok(email_id) => {
+                    info!(component = "smtp", email_id = %email_id, "Email saved to database");
                     let email_result = db::get_email_by_id(&db, &email_id).await;
 
                     let email_list_record = if let Ok(Some(email_record)) = email_result {
@@ -70,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to save email to database: {}", e);
+                    error!(component = "smtp", "Failed to save email to database: {}", e);
                 }
             }
         });

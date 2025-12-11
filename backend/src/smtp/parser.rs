@@ -1,5 +1,6 @@
 use mailparse::{DispositionType, MailAddr, MailHeaderMap, ParsedMail, addrparse, parse_mail};
 use std::collections::HashMap;
+use tracing::warn;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmailAttachment {
@@ -79,7 +80,7 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
             }
         }
         Err(err) => {
-            eprintln!("failed to parse mail for metadata: {err}");
+            warn!(component = "smtp", "Failed to parse mail for metadata: {}", err);
             ParsedEmailDetails {
                 attachments: Vec::new(),
                 message_id: None,
