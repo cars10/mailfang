@@ -185,7 +185,7 @@ async fn handle_connection(
     let mut framed: Framed<TcpStream, LinesCodec> =
         Framed::new(stream, LinesCodec::new_with_max_length(26_214_400));
     framed
-        .send("220 mailswallow SMTP ready".to_string())
+        .send("220 mailfang SMTP ready".to_string())
         .await?;
 
     let mut session = Session::new(on_receive, auth_username, auth_password);
@@ -545,7 +545,7 @@ impl Session {
         let mut rng = rand::thread_rng();
         let random_bytes: Vec<u8> = (0..16).map(|_| rng.r#gen::<u8>()).collect();
         let challenge = format!(
-            "<{}@mailswallow>",
+            "<{}@mailfang>",
             base64::engine::general_purpose::STANDARD.encode(&random_bytes)
         );
         challenge

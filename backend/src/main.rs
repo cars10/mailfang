@@ -1,4 +1,4 @@
-use mailswallow_backend::{db, migration, smtp, web};
+use mailfang_backend::{db, migration, smtp, web};
 use sea_orm_migration::prelude::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("valid web listen addr");
 
     let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://mailswallow.db".to_string());
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://mailfang.db".to_string());
     let db = Arc::new(
         sea_orm::Database::connect(&database_url)
             .await

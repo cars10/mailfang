@@ -23,5 +23,5 @@ test:
 	${compose} run --rm backend cargo test
 
 reset_db:
-	rm -f backend/mailswallow.db
-	touch backend/mailswallow.db
+	rm -f backend/mailfang.db
+	touch backend/mailfang.db
