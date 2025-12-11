@@ -26,6 +26,13 @@
       </router-link>
     </div>
 
+    <div class="flex flex-col gap-2 mt-4">
+      <button class="btn" :disabled="loadingDeleteAll" @click="handleDeleteAll">
+        <TrashIcon class="h-4" />
+        <div v-if="!mailLayoutStore.sidebarCollapsed">Delete all emails</div>
+      </button>
+    </div>
+
     <div class="flex mt-4 justify-end">
       <button
         class="hover:cursor-pointer bg-gray-200 shadow-md hover:text-primary focus:outline-primary p-1 rounded-xl z-10"
@@ -44,14 +51,17 @@
 </template>
 
 <script setup lang="ts">
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
+  import { useRouter } from 'vue-router'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import {
     InboxIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
+    TrashIcon,
   } from '@heroicons/vue/24/outline'
   import type { EmailCounts } from '@/types/email'
+  import { apiClient } from '@/api/client'
 
   interface Props {
     counts: EmailCounts
@@ -59,7 +69,9 @@
 
   const props = defineProps<Props>()
 
+  const router = useRouter()
   const mailLayoutStore = useMailLayoutStore()
+  const loadingDeleteAll = ref(false)
 
   const headerText = computed(() =>
     mailLayoutStore.sidebarCollapsed ? 'MF' : 'MailFang'
@@ -72,4 +84,27 @@
       count: props.counts.inbox,
     },
   ])
+
+  const handleDeleteAll = async () => {
+    if (loadingDeleteAll.value) return
+
+    if (
+      !confirm(
+        'Are you sure you want to delete ALL emails? This action cannot be undone.'
+      )
+    ) {
+      return
+    }
+
+    try {
+      loadingDeleteAll.value = true
+      await apiClient.deleteAll()
+      router.push('/mails/inbox')
+      window.location.reload()
+    } catch (err) {
+      console.error('Failed to delete all emails:', err)
+    } finally {
+      loadingDeleteAll.value = false
+    }
+  }
 </script>
