@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile*
+.dockerignore
+compose.yml
+
+# Documentation
+README.md
+*.md
+
+# Development files
+Makefile
+.env
+.env.*
+
+# Build artifacts
+backend/target
+backend/mailfang.db
+frontend/dist
+frontend/node_modules
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

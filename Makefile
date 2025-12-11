@@ -25,3 +25,9 @@ test:
 reset_db:
 	rm -f backend/mailfang.db
 	touch backend/mailfang.db
+
+build_prod:
+	docker build -t mailfang:latest .
+
+run_prod:
+	docker run -p 3000:3000 -p 2525:2525 mailfang:latest
