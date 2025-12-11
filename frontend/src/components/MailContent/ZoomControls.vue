@@ -1,15 +1,5 @@
 <template>
-  <div class="flex flex-row gap-2">
-    <button class="btn btn--icon" title="Zoom in" @click="zoomIn">
-      <MagnifyingGlassPlusIcon class="w-5 h-5" />
-    </button>
-    <button class="btn btn--icon" title="Reset zoom" @click="resetZoom">
-      <MagnifyingGlassCircleIcon class="w-5 h-5" />
-    </button>
-    <button class="btn btn--icon" title="Zoom out" @click="zoomOut">
-      <MagnifyingGlassMinusIcon class="w-5 h-5" />
-    </button>
-  </div>
+  <ButtonGroup :options="buttonOptions" />
 </template>
 
 <script setup lang="ts">
@@ -19,6 +9,9 @@
     MagnifyingGlassMinusIcon,
     MagnifyingGlassCircleIcon,
   } from '@heroicons/vue/24/outline'
+  import ButtonGroup, {
+    type ButtonGroupOption,
+  } from '../shared/ButtonGroup/ButtonGroup.vue'
 
   const props = defineProps<{
     modelValue: number
@@ -44,4 +37,25 @@
   const resetZoom = () => {
     zoom.value = 1.0
   }
+
+  const buttonOptions: ButtonGroupOption[] = [
+    {
+      value: 'zoom-in',
+      icon: MagnifyingGlassPlusIcon,
+      title: 'Zoom in',
+      onClick: zoomIn,
+    },
+    {
+      value: 'reset',
+      icon: MagnifyingGlassCircleIcon,
+      title: 'Reset zoom',
+      onClick: resetZoom,
+    },
+    {
+      value: 'zoom-out',
+      icon: MagnifyingGlassMinusIcon,
+      title: 'Zoom out',
+      onClick: zoomOut,
+    },
+  ]
 </script>

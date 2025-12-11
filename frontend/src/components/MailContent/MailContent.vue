@@ -11,7 +11,7 @@
           <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
           <Toggle
             v-model="mailLayoutStore.blockExternalRequests"
-            label="Block external requests"
+            label="Remote content"
           />
         </div>
         <div class="flex flex-row gap-1">

@@ -1,21 +1,24 @@
 <template>
-  <div class="inline-flex rounded-sm shadow-xs -space-x-px">
+  <div
+    class="inline-flex rounded-sm shadow-xs -space-x-px"
+    :class="{ 'gap-1': modelValue === undefined }"
+  >
     <button
       v-for="(option, index) in options"
       :key="option.value"
-      class="border border-gray-300 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 hover:shadow-sm"
+      class="border border-gray-300 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 hover:shadow-sm outline-primary"
       :class="{
         'bg-gray-100': modelValue === option.value,
         'rounded-s': index === 0,
-        'rounded-e': index === options.length - 1,
+        'rounded-e': index === props.options.length - 1,
       }"
       :title="option.title"
-      @click="selectOption(option.value)"
+      @click="selectOption(option)"
     >
       <component
         :is="option.icon"
         v-if="option.icon"
-        class="h-4 w-4"
+        class="h-5 w-5"
         :class="{ 'text-primary': modelValue === option.value }"
       />
       <span v-if="option.label">{{ option.label }}</span>
@@ -31,10 +34,11 @@
     label?: string
     icon?: Component
     title?: string
+    onClick?: () => void
   }
 
-  defineProps<{
-    modelValue: string | null
+  const props = defineProps<{
+    modelValue?: string | null
     options: ButtonGroupOption[]
   }>()
 
@@ -42,7 +46,10 @@
     'update:modelValue': [value: string]
   }>()
 
-  const selectOption = (value: string) => {
-    emit('update:modelValue', value)
+  const selectOption = (option: ButtonGroupOption) => {
+    option.onClick?.()
+    if (props.modelValue !== undefined) {
+      emit('update:modelValue', option.value)
+    }
   }
 </script>
