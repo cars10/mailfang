@@ -9,7 +9,7 @@
     </div>
 
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
-      <MailHeader :email="email" @update="fetchEmail" />
+      <MailHeader :email="email" />
 
       <MailAttachments v-if="email.attachments.length > 0" :email="email" />
 

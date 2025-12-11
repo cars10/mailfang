@@ -53,7 +53,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             from: email_record.from,
                             to: email_record.to,
                             read: email_record.read,
-                            archived: email_record.archived,
                             has_attachments: !email_record.attachments.is_empty(),
                         })
                     } else {

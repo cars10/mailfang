@@ -20,7 +20,6 @@ pub struct Model {
     pub body_html: Option<String>,
     pub rendered_body_html: Option<String>,
     pub read: bool,
-    pub archived: bool,
     pub has_attachments: bool,
     pub created_at: DateTime<Utc>,
 }

@@ -21,11 +21,6 @@ const routes = [
     component: MailLayout,
     children: [{ path: ':id', component: MailView }],
   },
-  {
-    path: '/mails/archive',
-    component: MailLayout,
-    children: [{ path: ':id', component: MailView }],
-  },
   { path: '/emails/:id/fullscreen', component: FullscreenEmailView },
   { path: '/settings', component: SettingsList },
   { path: '/:pathMatch(.*)*', redirect: '/' },

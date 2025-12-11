@@ -50,7 +50,6 @@
     InboxIcon,
     EnvelopeIcon,
     PaperClipIcon,
-    ArchiveBoxIcon,
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
   } from '@heroicons/vue/24/outline'
@@ -82,12 +81,6 @@
       icon: PaperClipIcon,
       label: 'With attachments',
       count: props.counts.with_attachments,
-    },
-    {
-      to: '/mails/archive',
-      icon: ArchiveBoxIcon,
-      label: 'Archive',
-      count: props.counts.archive,
     },
   ])
 </script>

@@ -8,15 +8,6 @@
       <div class="flex flex-row gap-1">
         <button
           class="btn btn--icon"
-          :title="email.archived ? 'Unarchive' : 'Archive'"
-          :disabled="loadingArchive"
-          @click="handleArchive"
-        >
-          <ArchiveBoxIcon class="h-5" />
-        </button>
-
-        <button
-          class="btn btn--icon"
           title="Delete"
           :disabled="loadingDelete"
           @click="handleDelete"
@@ -90,35 +81,13 @@
   import CopyBadge from '@/components/shared/CopyBadge/CopyBadge.vue'
   import prettyBytes from 'pretty-bytes'
   import { apiClient } from '@/api/client'
-  import {
-    ArchiveBoxIcon,
-    TrashIcon,
-    ArrowDownTrayIcon,
-  } from '@heroicons/vue/24/outline'
+  import { TrashIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 
   const props = defineProps<{ email: EmailRecord }>()
-  const emit = defineEmits<{
-    update: []
-  }>()
 
   const router = useRouter()
-  const loadingArchive = ref(false)
   const loadingDelete = ref(false)
   const loadingDownload = ref(false)
-
-  const handleArchive = async () => {
-    if (loadingArchive.value) return
-
-    try {
-      loadingArchive.value = true
-      await apiClient.archive(props.email.id, !props.email.archived)
-      emit('update')
-    } catch (err) {
-      console.error('Failed to archive email:', err)
-    } finally {
-      loadingArchive.value = false
-    }
-  }
 
   const handleDelete = async () => {
     if (loadingDelete.value) return

@@ -1,7 +1,7 @@
 use crate::db::{
-    DbPool, archive_email, delete_all_emails, delete_email_by_id, get_all_emails,
-    get_archived_emails, get_attachment_by_id, get_email_by_id, get_email_stats,
-    get_emails_with_attachments, get_raw_data_by_id, get_unread_emails, mark_email_read,
+    DbPool, delete_all_emails, delete_email_by_id, get_all_emails, get_attachment_by_id,
+    get_email_by_id, get_email_stats, get_emails_with_attachments, get_raw_data_by_id,
+    get_unread_emails, mark_email_read,
 };
 use crate::entities::emails;
 use axum::{
@@ -9,7 +9,7 @@ use axum::{
     extract::{Path, Query, State, ws::WebSocketUpgrade},
     http::{HeaderMap, HeaderValue, StatusCode},
     response::{Html, IntoResponse, Json, Response},
-    routing::{get, patch},
+    routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
 use sea_orm::EntityTrait;
@@ -57,7 +57,6 @@ impl From<std::io::Error> for WebError {
 pub enum WebSocketEvent {
     NewMail,
     EmailRead,
-    EmailArchived,
     EmailDeleted,
 }
 
@@ -76,16 +75,6 @@ pub type BroadcastSender = broadcast::Sender<WebSocketMessage>;
 struct AppState {
     pool: DbPool,
     broadcast: BroadcastSender,
-}
-
-#[derive(Deserialize)]
-struct ReadRequest {
-    read: bool,
-}
-
-#[derive(Deserialize)]
-struct ArchiveRequest {
-    archived: bool,
 }
 
 #[derive(Deserialize)]
@@ -132,10 +121,7 @@ pub async fn run_web_server(
             "/api/emails/with-attachments",
             get(list_emails_with_attachments),
         )
-        .route("/api/emails/archived", get(list_archived_emails))
         .route("/api/emails/{id}", get(get_email).delete(delete_email))
-        .route("/api/emails/{id}/read", patch(mark_read))
-        .route("/api/emails/{id}/archive", patch(archive_email_endpoint))
         .route("/api/emails/{id}/raw", get(get_raw_email))
         .route("/api/emails/{id}/rendered", get(get_rendered_email))
         .route("/api/attachments/{id}", get(get_attachment))
@@ -212,7 +198,6 @@ async fn get_email(
             from: updated_email.from.clone(),
             to: updated_email.to.clone(),
             read: updated_email.read,
-            archived: updated_email.archived,
             has_attachments: !updated_email.attachments.is_empty(),
         };
         state
@@ -314,103 +299,6 @@ async fn list_emails_with_attachments(
             total_pages,
         },
     }))
-}
-
-async fn list_archived_emails(
-    State(state): State<AppState>,
-    Query(params): Query<ListQueryParams>,
-) -> Result<Json<EmailListResponse>, WebError> {
-    let page = params.page.unwrap_or(1);
-    let per_page = 10;
-    let (emails, total_pages) = get_archived_emails(
-        &state.pool,
-        params.sort.as_deref(),
-        params.order.as_deref(),
-        params.search.as_deref(),
-        page,
-        per_page,
-    )
-    .await?;
-    let counts = get_email_stats(&state.pool).await?;
-    Ok(Json(EmailListResponse {
-        emails,
-        counts,
-        pagination: PaginationInfo {
-            page,
-            per_page,
-            total_pages,
-        },
-    }))
-}
-
-async fn mark_read(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    Json(request): Json<ReadRequest>,
-) -> Result<StatusCode, WebError> {
-    let rows_affected = mark_email_read(&state.pool, &id, request.read).await?;
-    if rows_affected > 0 {
-        let email_result = get_email_by_id(&state.pool, &id).await.ok().flatten();
-        if let Some(email_record) = email_result {
-            let email_list_record = crate::db::EmailListRecord {
-                id: email_record.id,
-                subject: email_record.subject,
-                date: email_record.date,
-                created_at: email_record.created_at,
-                from: email_record.from,
-                to: email_record.to,
-                read: email_record.read,
-                archived: email_record.archived,
-                has_attachments: !email_record.attachments.is_empty(),
-            };
-            state
-                .broadcast
-                .send(WebSocketMessage {
-                    event: WebSocketEvent::EmailRead,
-                    email: Some(email_list_record),
-                    email_id: None,
-                })
-                .ok();
-        }
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(WebError::NotFound)
-    }
-}
-
-async fn archive_email_endpoint(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-    Json(request): Json<ArchiveRequest>,
-) -> Result<StatusCode, WebError> {
-    let rows_affected = archive_email(&state.pool, &id, request.archived).await?;
-    if rows_affected > 0 {
-        let email_result = get_email_by_id(&state.pool, &id).await.ok().flatten();
-        if let Some(email_record) = email_result {
-            let email_list_record = crate::db::EmailListRecord {
-                id: email_record.id,
-                subject: email_record.subject,
-                date: email_record.date,
-                created_at: email_record.created_at,
-                from: email_record.from,
-                to: email_record.to,
-                read: email_record.read,
-                archived: email_record.archived,
-                has_attachments: !email_record.attachments.is_empty(),
-            };
-            state
-                .broadcast
-                .send(WebSocketMessage {
-                    event: WebSocketEvent::EmailArchived,
-                    email: Some(email_list_record),
-                    email_id: None,
-                })
-                .ok();
-        }
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(WebError::NotFound)
-    }
 }
 
 async fn get_raw_email(

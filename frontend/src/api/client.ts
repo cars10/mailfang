@@ -70,33 +70,9 @@ export class ApiClient {
     )
   }
 
-  async archived(
-    page: number = 1,
-    search?: string
-  ): Promise<EmailListResponse> {
-    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(
-      `/api/emails/archived?page=${page}${searchParam}`
-    )
-  }
-
   // Single email operations
   async getEmail(id: string): Promise<EmailRecord> {
     return this.request<EmailRecord>(`/api/emails/${id}`)
-  }
-
-  async setRead(id: string, read: boolean): Promise<void> {
-    return this.request<void>(`/api/emails/${id}/read`, {
-      method: 'PATCH',
-      body: JSON.stringify({ read }),
-    })
-  }
-
-  async archive(id: string, archived: boolean): Promise<void> {
-    return this.request<void>(`/api/emails/${id}/archive`, {
-      method: 'PATCH',
-      body: JSON.stringify({ archived }),
-    })
   }
 
   async deleteEmail(id: string): Promise<void> {

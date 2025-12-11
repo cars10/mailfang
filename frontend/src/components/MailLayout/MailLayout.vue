@@ -34,7 +34,6 @@
     inbox: 0,
     unread: 0,
     with_attachments: 0,
-    archive: 0,
   })
   const loading = ref(false)
   const loadingMore = ref(false)
@@ -50,21 +49,17 @@
       return apiClient.unread(page, search)
     } else if (path.startsWith('/mails/with-attachments')) {
       return apiClient.withAttachments(page, search)
-    } else if (path.startsWith('/mails/archive')) {
-      return apiClient.archived(page, search)
     }
     return apiClient.inbox(page, search)
   }
 
   const shouldShowEmail = (email: EmailListRecord, path: string): boolean => {
     if (path.startsWith('/mails/inbox')) {
-      return !email.archived
+      return true
     } else if (path.startsWith('/mails/unread')) {
-      return !email.read && !email.archived
+      return !email.read
     } else if (path.startsWith('/mails/with-attachments')) {
-      return email.has_attachments && !email.archived
-    } else if (path.startsWith('/mails/archive')) {
-      return email.archived
+      return email.has_attachments
     }
     return true
   }
@@ -145,32 +140,6 @@
     }
   }
 
-  const handleEmailArchived = (email: EmailListRecord) => {
-    fetchCounts()
-
-    if (searchStore.query.trim()) {
-      return
-    }
-
-    const index = emails.value.findIndex(e => e.id === email.id)
-    if (index !== -1) {
-      // Email exists in current list
-      if (shouldShowEmail(email, route.path)) {
-        // Should be shown in current view, update it
-        emails.value[index] = email
-      } else {
-        // Should not be shown in current view, remove it
-        emails.value.splice(index, 1)
-      }
-    } else {
-      // Email doesn't exist in current list
-      if (shouldShowEmail(email, route.path)) {
-        // Should be shown in current view, add it
-        emails.value = [email, ...emails.value]
-      }
-    }
-  }
-
   const handleEmailDeleted = (emailId: string) => {
     fetchCounts()
 
@@ -201,8 +170,6 @@
             handleNewMail(message.email)
           } else if (message.event === 'email_read' && message.email) {
             handleEmailRead(message.email)
-          } else if (message.event === 'email_archived' && message.email) {
-            handleEmailArchived(message.email)
           } else if (message.event === 'email_deleted' && message.email_id) {
             handleEmailDeleted(message.email_id)
           }
@@ -235,11 +202,7 @@
   watch(
     () => route.path,
     newPath => {
-      if (
-        !newPath.match(
-          /\/mails\/(inbox|unread|with-attachments|archive)\/[^/]+$/
-        )
-      ) {
+      if (!newPath.match(/\/mails\/(inbox|unread|with-attachments)\/[^/]+$/)) {
         searchStore.query = ''
         fetchMails()
       }

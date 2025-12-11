@@ -22,7 +22,6 @@ export interface EmailRecord {
   body_text: string
   body_html: string
   read: boolean
-  archived: boolean
   attachments: EmailAttachment[]
 }
 
@@ -34,7 +33,6 @@ export interface EmailListRecord {
   from: string
   to: string[] // From "To" header
   read: boolean
-  archived: boolean
   has_attachments: boolean
 }
 
@@ -42,7 +40,6 @@ export interface EmailCounts {
   inbox: number
   unread: number
   with_attachments: number
-  archive: number
 }
 
 export interface PaginationInfo {

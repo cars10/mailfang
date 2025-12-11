@@ -31,12 +31,6 @@ impl MigrationTrait for Migration {
                             .default(false),
                     )
                     .col(
-                        ColumnDef::new(Emails::Archived)
-                            .boolean()
-                            .not_null()
-                            .default(false),
-                    )
-                    .col(
                         ColumnDef::new(Emails::HasAttachments)
                             .boolean()
                             .not_null()
@@ -126,7 +120,6 @@ enum Emails {
     BodyHtml,
     RenderedBodyHtml,
     Read,
-    Archived,
     HasAttachments,
     CreatedAt,
 }

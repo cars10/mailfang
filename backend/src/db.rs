@@ -25,7 +25,6 @@ pub struct EmailRecord {
     pub body_text: String,
     pub body_html: String,
     pub read: bool,
-    pub archived: bool,
     pub attachments: Vec<EmailAttachmentRecord>,
 }
 
@@ -38,7 +37,6 @@ pub struct EmailListRecord {
     pub from: String,
     pub to: Vec<String>, // From "To" header
     pub read: bool,
-    pub archived: bool,
     pub has_attachments: bool,
 }
 
@@ -142,7 +140,6 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
         body_html: Set(Some(message.body_html.clone())),
         rendered_body_html: Set(rendered_body_html),
         read: Set(false),
-        archived: Set(false),
         has_attachments: Set(has_attachments),
         created_at: Set(Utc::now()),
     };
@@ -248,7 +245,6 @@ fn email_model_to_record(
         body_text: email.body_text.unwrap_or_default(),
         body_html: email.body_html.unwrap_or_default(),
         read: email.read,
-        archived: email.archived,
         attachments: attachments
             .into_iter()
             .map(|a| EmailAttachmentRecord {
@@ -279,7 +275,6 @@ fn email_model_to_list_record(email: emails::Model) -> EmailListRecord {
         from: email.from,
         to,
         read: email.read,
-        archived: email.archived,
         has_attachments: email.has_attachments,
     }
 }
@@ -292,7 +287,7 @@ pub async fn get_all_emails(
     page: u64,
     per_page: u64,
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find().filter(emails::Column::Archived.eq(false));
+    let query = emails::Entity::find();
     let query = apply_search_filter(query, search);
     let query = apply_sorting(query, sort, order);
     let paginator = query.paginate(db, per_page);
@@ -350,23 +345,6 @@ pub async fn mark_email_read(
     Ok(1)
 }
 
-pub async fn archive_email(
-    db: &DatabaseConnection,
-    email_id: &str,
-    archived: bool,
-) -> Result<u64, DbErr> {
-    let email = emails::Entity::find_by_id(email_id.to_string())
-        .one(db)
-        .await?
-        .ok_or_else(|| DbErr::RecordNotFound(format!("Email with id {} not found", email_id)))?;
-
-    let mut email: emails::ActiveModel = email.into();
-    email.archived = Set(archived);
-    email.update(db).await?;
-
-    Ok(1)
-}
-
 pub async fn get_unread_emails(
     db: &DatabaseConnection,
     sort: Option<&str>,
@@ -375,9 +353,7 @@ pub async fn get_unread_emails(
     page: u64,
     per_page: u64,
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find()
-        .filter(emails::Column::Read.eq(false))
-        .filter(emails::Column::Archived.eq(false));
+    let query = emails::Entity::find().filter(emails::Column::Read.eq(false));
     let query = apply_search_filter(query, search);
     let query = apply_sorting(query, sort, order);
     let paginator = query.paginate(db, per_page);
@@ -397,26 +373,7 @@ pub async fn get_emails_with_attachments(
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
     let query = emails::Entity::find()
         .inner_join(email_attachments::Entity)
-        .filter(emails::Column::Archived.eq(false))
         .distinct();
-    let query = apply_search_filter(query, search);
-    let query = apply_sorting(query, sort, order);
-    let paginator = query.paginate(db, per_page);
-    let num_pages = paginator.num_pages().await?;
-    let email_models = paginator.fetch_page(page - 1).await?;
-    let records = convert_emails_to_list_records(email_models);
-    Ok((records, num_pages))
-}
-
-pub async fn get_archived_emails(
-    db: &DatabaseConnection,
-    sort: Option<&str>,
-    order: Option<&str>,
-    search: Option<&str>,
-    page: u64,
-    per_page: u64,
-) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find().filter(emails::Column::Archived.eq(true));
     let query = apply_search_filter(query, search);
     let query = apply_sorting(query, sort, order);
     let paginator = query.paginate(db, per_page);
@@ -462,34 +419,20 @@ pub struct EmailStats {
     pub inbox: u64,
     pub unread: u64,
     pub with_attachments: u64,
-    pub archive: u64,
 }
 
 pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbErr> {
-    // Count inbox emails (non-archived)
-    let inbox_count = emails::Entity::find()
-        .filter(emails::Column::Archived.eq(false))
-        .count(db)
-        .await?;
+    let inbox_count = emails::Entity::find().count(db).await?;
 
-    // Count unread emails (non-archived and unread)
     let unread_count = emails::Entity::find()
         .filter(emails::Column::Read.eq(false))
-        .filter(emails::Column::Archived.eq(false))
         .count(db)
         .await?;
 
-    // Count emails with attachments (non-archived and has attachments)
+    // Count emails with attachments
     let with_attachments_count = emails::Entity::find()
         .inner_join(email_attachments::Entity)
-        .filter(emails::Column::Archived.eq(false))
         .distinct()
-        .count(db)
-        .await?;
-
-    // Count archived emails
-    let archive_count = emails::Entity::find()
-        .filter(emails::Column::Archived.eq(true))
         .count(db)
         .await?;
 
@@ -497,6 +440,5 @@ pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbEr
         inbox: inbox_count,
         unread: unread_count,
         with_attachments: with_attachments_count,
-        archive: archive_count,
     })
 }
