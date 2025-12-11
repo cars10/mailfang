@@ -1,5 +1,7 @@
 <template>
   <div class="p-4 bg-gray-100 border-r border-gray-300 shrink-0">
+    <h1 class="text-2xl font-bold mb-4 text-center">{{ headerText }}</h1>
+
     <div class="flex flex-col gap-2">
       <router-link
         v-for="link in links"
@@ -24,11 +26,9 @@
       </router-link>
     </div>
 
-    <div
-      :class="`flex mt-4 ${mailLayoutStore.sidebarCollapsed ? 'justify-center' : 'justify-end'}`"
-    >
+    <div class="flex mt-4 justify-end">
       <button
-        class="hover:cursor-pointer bg-gray-200 shadow-md hover:text-primary p-1 rounded-xl z-10"
+        class="hover:cursor-pointer bg-gray-200 shadow-md hover:text-primary focus:outline-primary p-1 rounded-xl z-10"
         @click="
           mailLayoutStore.sidebarCollapsed = !mailLayoutStore.sidebarCollapsed
         "
@@ -61,6 +61,9 @@
 
   const mailLayoutStore = useMailLayoutStore()
 
+  const headerText = computed(() =>
+    mailLayoutStore.sidebarCollapsed ? 'MF' : 'MailFang'
+  )
   const links = computed(() => [
     {
       to: '/mails/inbox',
