@@ -79,7 +79,7 @@ struct AppState {
 
 #[derive(Deserialize)]
 struct RenderedQueryParams {
-    block_external_requests: Option<bool>,
+    allow_remote_content: Option<bool>,
 }
 
 #[derive(serde::Serialize)]
@@ -374,11 +374,12 @@ async fn get_rendered_email(
 
     let rendered_html = email_model.rendered_body_html.ok_or(WebError::NotFound)?;
 
-    let block_external = params.block_external_requests.unwrap_or(true);
-    let html = if block_external {
-        inject_csp_meta_tag(rendered_html)
-    } else {
+    // Default to blocking remote content unless explicitly allowed
+    let allow_remote_content = params.allow_remote_content.unwrap_or(false);
+    let html = if allow_remote_content {
         rendered_html
+    } else {
+        inject_csp_meta_tag(rendered_html)
     };
 
     let mut headers = HeaderMap::new();

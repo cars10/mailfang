@@ -10,7 +10,7 @@ type MailLayoutState = {
   inboxWidth: number
   sidebarCollapsed: boolean
   mailContentZoom: number
-  blockExternalRequests: boolean
+  allowRemoteContent: boolean
   screenSize: ScreenSize | null
 }
 
@@ -19,7 +19,7 @@ export const useMailLayoutStore = defineStore('mailLayout', {
     inboxWidth: 350,
     sidebarCollapsed: false,
     mailContentZoom: 1.0,
-    blockExternalRequests: false,
+    allowRemoteContent: true,
     screenSize: null,
   }),
   persist: true,

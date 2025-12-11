@@ -18,7 +18,7 @@
   const mailLayoutStore = useMailLayoutStore()
 
   const renderedUrl = computed(() => {
-    const blockExternal = mailLayoutStore.blockExternalRequests
-    return `/api/emails/${emailId}/rendered?block_external_requests=${blockExternal}`
+    const allowRemote = mailLayoutStore.allowRemoteContent
+    return `/api/emails/${emailId}/rendered?allow_remote_content=${allowRemote}`
   })
 </script>

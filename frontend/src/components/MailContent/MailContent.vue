@@ -10,8 +10,8 @@
         <div class="flex flex-row gap-4">
           <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
           <Toggle
-            v-model="mailLayoutStore.blockExternalRequests"
-            label="Remote content"
+            v-model="mailLayoutStore.allowRemoteContent"
+            label="Allow remote content"
           />
         </div>
         <div class="flex flex-row gap-1">
@@ -173,8 +173,8 @@
   // Computed property for iframe URL that updates when blocking state changes
   const renderedUrl = computed(() => {
     if (!props.email.body_html) return ''
-    const blockExternal = mailLayoutStore.blockExternalRequests
-    return `/api/emails/${props.email.id}/rendered?block_external_requests=${blockExternal}`
+    const allowRemote = mailLayoutStore.allowRemoteContent
+    return `/api/emails/${props.email.id}/rendered?allow_remote_content=${allowRemote}`
   })
 
   const loadRawEmail = async () => {
@@ -207,9 +207,9 @@
     { immediate: true }
   )
 
-  // Watch blockExternalRequests to trigger iframe reload
+  // Watch allowRemoteContent to trigger iframe reload
   watch(
-    () => mailLayoutStore.blockExternalRequests,
+    () => mailLayoutStore.allowRemoteContent,
     () => {
       // The iframe src will change, triggering a reload
       // Set loading state briefly
