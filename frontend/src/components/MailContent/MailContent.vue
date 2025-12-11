@@ -15,53 +15,16 @@
           />
         </div>
         <div class="flex flex-row gap-1">
-          <button
-            class="btn btn--small"
-            :class="
-              mailLayoutStore.screenSize === ScreenSize.Mobile
-                ? 'bg-primary text-white border-primary'
-                : ''
-            "
-            title="Mobile (375px)"
-            @click="mailLayoutStore.screenSize = ScreenSize.Mobile"
-          >
-            <DevicePhoneMobileIcon class="h-4 w-4" />
-            Mobile
-          </button>
-          <button
-            class="btn btn--small"
-            :class="
-              mailLayoutStore.screenSize === ScreenSize.Tablet
-                ? 'bg-primary text-white border-primary'
-                : ''
-            "
-            title="Tablet (768px)"
-            @click="mailLayoutStore.screenSize = ScreenSize.Tablet"
-          >
-            <DeviceTabletIcon class="h-4 w-4" />
-            Tablet
-          </button>
-          <button
-            class="btn btn--small"
-            :class="
-              mailLayoutStore.screenSize === ScreenSize.Desktop
-                ? 'bg-primary text-white border-primary'
-                : ''
-            "
-            title="Desktop (1024px)"
-            @click="mailLayoutStore.screenSize = ScreenSize.Desktop"
-          >
-            <ComputerDesktopIcon class="h-4 w-4" />
-            Desktop
-          </button>
+          <ButtonGroup
+            v-model="mailLayoutStore.screenSize"
+            :options="screenSizeOptions"
+          />
           <a
             :href="`/emails/${email.id}/fullscreen`"
             class="btn btn--small"
-            title="Open email in fullscreen"
             target="_blank"
           >
             <ArrowTopRightOnSquareIcon class="h-4 w-4" />
-            New Tab
           </a>
         </div>
       </div>
@@ -143,6 +106,7 @@
   import ZoomControls from './ZoomControls.vue'
   import MailHeaders from './MailHeaders.vue'
   import Toggle from '@/components/shared/Toggle/Toggle.vue'
+  import ButtonGroup from '@/components/shared/ButtonGroup/ButtonGroup.vue'
 
   const props = defineProps<{
     email: EmailRecord
@@ -153,6 +117,24 @@
   const rawContent = ref<string>('')
   const loadingRaw = ref(false)
   const loadingRendered = ref(false)
+
+  const screenSizeOptions = [
+    {
+      value: ScreenSize.Mobile,
+      icon: DevicePhoneMobileIcon,
+      title: 'Mobile (375px)',
+    },
+    {
+      value: ScreenSize.Tablet,
+      icon: DeviceTabletIcon,
+      title: 'Tablet (768px)',
+    },
+    {
+      value: ScreenSize.Desktop,
+      icon: ComputerDesktopIcon,
+      title: 'Desktop (1024px)',
+    },
+  ]
 
   // Computed property for iframe container style based on screen size
   const iframeContainerStyle = computed(() => {

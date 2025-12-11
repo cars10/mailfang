@@ -1,0 +1,48 @@
+<template>
+  <div class="inline-flex rounded-sm shadow-xs -space-x-px">
+    <button
+      v-for="(option, index) in options"
+      :key="option.value"
+      class="border border-gray-300 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 hover:shadow-sm"
+      :class="{
+        'bg-gray-100': modelValue === option.value,
+        'rounded-s': index === 0,
+        'rounded-e': index === options.length - 1,
+      }"
+      :title="option.title"
+      @click="selectOption(option.value)"
+    >
+      <component
+        :is="option.icon"
+        v-if="option.icon"
+        class="h-4 w-4"
+        :class="{ 'text-primary': modelValue === option.value }"
+      />
+      <span v-if="option.label">{{ option.label }}</span>
+    </button>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import type { Component } from 'vue'
+
+  export interface ButtonGroupOption {
+    value: string
+    label?: string
+    icon?: Component
+    title?: string
+  }
+
+  defineProps<{
+    modelValue: string | null
+    options: ButtonGroupOption[]
+  }>()
+
+  const emit = defineEmits<{
+    'update:modelValue': [value: string]
+  }>()
+
+  const selectOption = (value: string) => {
+    emit('update:modelValue', value)
+  }
+</script>
