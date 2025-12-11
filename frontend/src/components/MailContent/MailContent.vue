@@ -11,7 +11,8 @@
           <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
           <Toggle
             v-model="mailLayoutStore.allowRemoteContent"
-            label="Allow remote content"
+            label="Remote content"
+            small
           />
         </div>
         <div class="flex flex-row gap-1">
@@ -38,7 +39,7 @@
       <div
         v-else
         :class="[
-          'w-full overflow-auto py-1',
+          'w-full overflow-auto',
           mailLayoutStore.screenSize === ScreenSize.Mobile ? '' : 'h-full',
           mailLayoutStore.screenSize ? 'flex justify-center' : '',
         ]"
@@ -132,11 +133,10 @@
     {
       value: ScreenSize.Desktop,
       icon: ComputerDesktopIcon,
-      title: 'Desktop (1024px)',
+      title: 'Desktop',
     },
   ]
 
-  // Computed property for iframe container style based on screen size
   const iframeContainerStyle = computed(() => {
     const screenSize = mailLayoutStore.screenSize
     if (!screenSize) {
@@ -145,7 +145,7 @@
     const maxWidths: Record<ScreenSize, string> = {
       [ScreenSize.Mobile]: '375px',
       [ScreenSize.Tablet]: '768px',
-      [ScreenSize.Desktop]: '1024px',
+      [ScreenSize.Desktop]: '100%',
     }
     const style: Record<string, string> = {
       maxWidth: maxWidths[screenSize],

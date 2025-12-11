@@ -8,20 +8,20 @@
       <div class="flex flex-row gap-1">
         <button
           class="btn btn--icon"
-          title="Delete"
-          :disabled="loadingDelete"
-          @click="handleDelete"
-        >
-          <TrashIcon class="h-5" />
-        </button>
-
-        <button
-          class="btn btn--icon"
           title="Download"
           :disabled="loadingDownload"
           @click="handleDownload"
         >
           <ArrowDownTrayIcon class="h-5" />
+        </button>
+
+        <button
+          class="btn btn--icon"
+          title="Delete"
+          :disabled="loadingDelete"
+          @click="handleDelete"
+        >
+          <TrashIcon class="h-5" />
         </button>
       </div>
     </div>
