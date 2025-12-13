@@ -26,12 +26,12 @@ reset_db:
 	rm -f backend/mailfang.db
 	touch backend/mailfang.db
 
-build_embedded:
+build_prod:
 	cd frontend && npm install && npm run build
 	cd backend && cargo build --release --features embed-frontend
 
-build_prod:
+build_docker_prod:
 	docker build -t mailfang:latest .
 
-run_prod:
+run_docker_prod:
 	docker run -p 3000:3000 -p 2525:2525 mailfang:latest
