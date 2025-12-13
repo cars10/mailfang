@@ -1,9 +1,11 @@
 use mailfang_backend::{db, logging, migration, smtp, web};
 use sea_orm_migration::prelude::*;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::{fs, io};
 use tokio::sync::broadcast;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,6 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let database_url =
         std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://mailfang.db".to_string());
+    ensure_sqlite_db_file(&database_url)?;
     let db = Arc::new(
         sea_orm::Database::connect(&database_url)
             .await
@@ -73,7 +76,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Err(e) => {
-                    error!(component = "smtp", "Failed to save email to database: {}", e);
+                    error!(
+                        component = "smtp",
+                        "Failed to save email to database: {}", e
+                    );
                 }
             }
         });
@@ -90,6 +96,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         web_result = web::run_web_server(web_addr, db, broadcast_tx, static_dir.as_deref()) => {
             web_result?;
         }
+    }
+
+    Ok(())
+}
+
+fn ensure_sqlite_db_file(database_url: &str) -> io::Result<()> {
+    if !database_url.starts_with("sqlite:") {
+        return Ok(());
+    }
+
+    if database_url.contains(":memory:") {
+        return Ok(());
+    }
+
+    let path_part = database_url.trim_start_matches("sqlite://");
+    let path: PathBuf = if path_part.starts_with('/') {
+        PathBuf::from(path_part)
+    } else {
+        std::env::current_dir()?.join(path_part)
+    };
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    if !path.exists() {
+        fs::File::create(path)?;
     }
 
     Ok(())

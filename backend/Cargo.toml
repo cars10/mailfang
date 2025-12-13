@@ -3,6 +3,10 @@ name = "mailfang-backend"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+embed-frontend = ["static-serve"]
+
 [dependencies]
 async-trait = "0.1"
 axum = { version = "0.8", features = ["multipart", "ws"] }
@@ -25,5 +29,9 @@ base64 = "0.22"
 md5 = "0.7"
 rand = "0.8"
 hex = "0.4"
+static-serve = { version = "0.4", optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "chrono"] }
+
+[profile.release]
+lto = true

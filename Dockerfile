@@ -27,8 +27,9 @@ RUN mkdir src && \
     rm -rf src
 
 COPY backend/src ./src
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
-RUN cargo build --release
+RUN cargo build --release --features embed-frontend
 
 
 # Stage 3: Runtime image
@@ -47,8 +48,6 @@ WORKDIR /app
 
 COPY --from=backend-builder /app/backend/target/release/mailfang-backend /app/mailfang-backend
 
-COPY --from=frontend-builder /app/frontend/dist /app/static
-
 RUN mkdir -p /data && \
     touch /data/mailfang.db && \
     chown -R appuser:appuser /app /data
@@ -57,7 +56,6 @@ USER appuser
 
 EXPOSE 3000 2525
 
-ENV STATIC_DIR=/app/static
 ENV DATABASE_URL=sqlite:///data/mailfang.db
 ENV WEB_PORT=3000
 ENV SMTP_PORT=2525

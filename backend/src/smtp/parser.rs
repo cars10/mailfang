@@ -80,7 +80,10 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
             }
         }
         Err(err) => {
-            warn!(component = "smtp", "Failed to parse mail for metadata: {}", err);
+            warn!(
+                component = "smtp",
+                "Failed to parse mail for metadata: {}", err
+            );
             ParsedEmailDetails {
                 attachments: Vec::new(),
                 message_id: None,

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::thread;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
-use tracing::{info, error};
+use tracing::{error, info};
 use uuid::Uuid;
 
 /// Decode base64 string, handling padding issues
@@ -123,8 +123,7 @@ impl SmtpServer {
 
         info!(
             component = "smtp",
-            "SMTP server listening on {} (max connections: {})",
-            self.addr, self.max_connections
+            "SMTP server listening on {} (max connections: {})", self.addr, self.max_connections
         );
 
         loop {
@@ -188,9 +187,7 @@ async fn handle_connection(
 ) -> Result<()> {
     let mut framed: Framed<TcpStream, LinesCodec> =
         Framed::new(stream, LinesCodec::new_with_max_length(26_214_400));
-    framed
-        .send("220 mailfang SMTP ready".to_string())
-        .await?;
+    framed.send("220 mailfang SMTP ready".to_string()).await?;
 
     let mut session = Session::new(on_receive, auth_username, auth_password, peer);
 
@@ -950,7 +947,12 @@ mod tests {
     #[test]
     fn requires_auth_when_credentials_set() {
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         assert!(!session.authenticated); // Should require auth
 
         session.process_line("EHLO localhost").unwrap();
@@ -967,7 +969,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Create base64 encoded credentials: \0user\0pass
@@ -993,7 +1000,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // AUTH PLAIN without credentials
@@ -1013,7 +1025,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Wrong password
@@ -1031,7 +1048,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Start LOGIN auth
@@ -1062,7 +1084,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Start LOGIN auth
@@ -1159,7 +1186,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Start CRAM-MD5 auth
@@ -1196,7 +1228,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Start CRAM-MD5 auth
@@ -1226,7 +1263,12 @@ mod tests {
         let engine = base64::engine::general_purpose::STANDARD;
         let peer: SocketAddr = "127.0.0.1:12345".parse().unwrap();
 
-        let mut session = Session::new(None, Some("user".to_string()), Some("pass".to_string()), peer);
+        let mut session = Session::new(
+            None,
+            Some("user".to_string()),
+            Some("pass".to_string()),
+            peer,
+        );
         session.process_line("EHLO localhost").unwrap();
 
         // Start CRAM-MD5 auth

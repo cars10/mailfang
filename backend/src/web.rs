@@ -10,15 +10,19 @@ use axum::{
     response::{Html, IntoResponse, Json, Response},
     routing::get,
 };
+#[cfg(feature = "embed-frontend")]
+use static_serve::embed_assets;
+#[cfg(feature = "embed-frontend")]
+embed_assets!("../frontend/dist");
 use futures_util::{SinkExt, StreamExt};
 use sea_orm::EntityTrait;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Instant;
 use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
 use tracing::info;
-use std::time::Instant;
 
 #[derive(Debug)]
 pub enum WebError {
@@ -78,6 +82,34 @@ struct AppState {
     broadcast: BroadcastSender,
 }
 
+fn attach_frontend_routes(app: Router<AppState>, static_dir: Option<&str>) -> Router<AppState> {
+    if let Some(static_dir) = static_dir {
+        let static_path = PathBuf::from(static_dir);
+        let assets_path = static_path.join("assets");
+        let index_path = static_path.join("index.html");
+
+        return app
+            .nest_service("/assets", ServeDir::new(assets_path))
+            .fallback(get(move |state: State<AppState>| {
+                let index_path = index_path.clone();
+                async move { serve_index_with_path(state, index_path).await }
+            }));
+    }
+
+    #[cfg(feature = "embed-frontend")]
+    {
+        // Merge static router for assets, then add fallback to serve index.html for SPA routing
+        return app
+            .merge(static_router())
+            .fallback(get(serve_embedded_index));
+    }
+
+    #[cfg(not(feature = "embed-frontend"))]
+    {
+        app
+    }
+}
+
 #[derive(Deserialize)]
 struct RenderedQueryParams {
     allow_remote_content: Option<bool>,
@@ -113,7 +145,7 @@ pub async fn run_web_server(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState { pool, broadcast };
 
-    let mut app = Router::new()
+    let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/emails", get(list_emails).delete(delete_all))
         .route("/api/emails/sidebar", get(get_email_stats_endpoint))
@@ -122,26 +154,9 @@ pub async fn run_web_server(
         .route("/api/emails/{id}/rendered", get(get_rendered_email))
         .route("/api/attachments/{id}", get(get_attachment))
         .route("/ws", get(websocket_handler))
-        .layer(
-            axum::middleware::from_fn(log_http_request)
-        );
+        .layer(axum::middleware::from_fn(log_http_request));
 
-    // Only serve static files if STATIC_DIR is provided (production mode)
-    if let Some(static_dir) = static_dir {
-        let static_path = PathBuf::from(static_dir);
-        let assets_path = static_path.join("assets");
-        let index_path = static_path.join("index.html");
-
-        app = app
-            .nest_service("/assets", ServeDir::new(assets_path))
-            .fallback(get(move |state: State<AppState>| {
-                let index_path = index_path.clone();
-                async move { serve_index_with_path(state, index_path).await }
-            }));
-    }
-
-    // Always set state at the end
-    let app = app.with_state(app_state);
+    let app = attach_frontend_routes(app, static_dir).with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(component = "web", "Web server listening on {}", addr);
@@ -219,6 +234,13 @@ async fn serve_index_with_path(
 ) -> Result<Html<String>, WebError> {
     let content = tokio::fs::read_to_string(&index_path).await?;
     Ok(Html(content))
+}
+
+#[cfg(feature = "embed-frontend")]
+async fn serve_embedded_index() -> Result<Html<String>, WebError> {
+    // Include index.html at compile time
+    const INDEX_HTML: &str = include_str!("../../frontend/dist/index.html");
+    Ok(Html(INDEX_HTML.to_string()))
 }
 
 async fn delete_email(
@@ -371,11 +393,11 @@ async fn log_http_request(
     let method = request.method().clone();
     let uri = request.uri().clone();
     let start = Instant::now();
-    
+
     let response = next.run(request).await;
     let status = response.status();
     let latency = start.elapsed();
-    
+
     info!(
         component = "web",
         method = %method,
@@ -384,7 +406,7 @@ async fn log_http_request(
         latency_ms = latency.as_millis(),
         "HTTP request"
     );
-    
+
     response
 }
 
