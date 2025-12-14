@@ -12,7 +12,7 @@ type MailLayoutState = {
   sidebarCollapsed: boolean
   mailContentZoom: number
   allowRemoteContent: boolean
-  screenSize: ScreenSize | null
+  screenSize: ScreenSize
 }
 
 export const useMailLayoutStore = defineStore('mailLayout', {
@@ -21,7 +21,7 @@ export const useMailLayoutStore = defineStore('mailLayout', {
     sidebarCollapsed: false,
     mailContentZoom: 1.0,
     allowRemoteContent: true,
-    screenSize: null,
+    screenSize: ScreenSize.Desktop,
   }),
   persist: true,
 })

@@ -131,7 +131,6 @@
       onMessage: event => {
         try {
           const message = JSON.parse(event.data)
-          console.log(message)
           if (message.event === 'new_mail' && message.email) {
             handleNewMail(message.email)
           } else if (message.event === 'email_read' && message.email) {

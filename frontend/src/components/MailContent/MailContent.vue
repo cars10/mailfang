@@ -163,9 +163,9 @@
   const deviceMockupClass = computed(() => {
     const screenSize = mailLayoutStore.screenSize
     if (screenSize === ScreenSize.Mobile) {
-      return 'bg-gray-900 rounded-[2.5rem] p-2 shadow-2xl border-4 border-gray-800'
+      return 'bg-gray-900 rounded-[2.5rem] p-2 border-4 border-gray-800'
     } else if (screenSize === ScreenSize.Tablet) {
-      return 'bg-gray-900 rounded-xl p-3 shadow-2xl border-4 border-gray-800'
+      return 'bg-gray-900 rounded-xl p-3 border-4 border-gray-800'
     }
     return ''
   })
