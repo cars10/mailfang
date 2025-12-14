@@ -26,7 +26,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=sqlite:/app/mailfang.db
+      - DATABASE_URL=sqlite:///app/mailfang.db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 10s

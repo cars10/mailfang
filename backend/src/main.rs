@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("valid web listen addr");
 
     let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://mailfang.db".to_string());
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:///app/mailfang.db".to_string());
     ensure_sqlite_db_file(&database_url)?;
     let db = Arc::new(
         sea_orm::Database::connect(&database_url)
@@ -110,7 +110,15 @@ fn ensure_sqlite_db_file(database_url: &str) -> io::Result<()> {
         return Ok(());
     }
 
-    let path_part = database_url.trim_start_matches("sqlite://");
+    // Handle both sqlite:// and sqlite:/ formats
+    let path_part = if database_url.starts_with("sqlite://") {
+        database_url.trim_start_matches("sqlite://")
+    } else if database_url.starts_with("sqlite:/") {
+        database_url.trim_start_matches("sqlite:/")
+    } else {
+        database_url.trim_start_matches("sqlite:")
+    };
+
     let path: PathBuf = if path_part.starts_with('/') {
         PathBuf::from(path_part)
     } else {

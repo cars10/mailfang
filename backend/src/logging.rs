@@ -80,5 +80,3 @@ pub fn init() {
         .with(filter)
         .init();
 }
-
-
