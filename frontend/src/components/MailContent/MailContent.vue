@@ -34,38 +34,15 @@
         v-if="loadingRendered"
         class="flex items-center justify-center h-full"
       >
-        <div class="text-gray-500">Loading email content...</div>
+        <Spinner size="6" />
       </div>
-      <div
-        v-else
-        :class="[
-          'w-full overflow-auto',
-          mailLayoutStore.screenSize === ScreenSize.Mobile ? '' : 'h-full',
-          mailLayoutStore.screenSize ? 'flex justify-center' : '',
-        ]"
-      >
-        <div
-          :class="[
-            deviceMockupClass,
-            mailLayoutStore.screenSize === ScreenSize.Mobile
-              ? ''
-              : 'h-full w-full',
-          ]"
-          :style="iframeContainerStyle"
-        >
+      <div v-else :class="renderedWrapperClass">
+        <div :class="iframeWrapperClass" :style="iframeWrapperStyle">
           <iframe
             :key="renderedUrl"
             :src="renderedUrl"
-            :class="[
-              'border-0 bg-white',
-              mailLayoutStore.screenSize === ScreenSize.Mobile
-                ? 'rounded-4xl w-full h-full'
-                : 'h-full w-full',
-              mailLayoutStore.screenSize === ScreenSize.Tablet
-                ? 'rounded-lg'
-                : '',
-            ]"
-            :style="{ zoom: mailLayoutStore.mailContentZoom }"
+            :class="iframeClass"
+            :style="iframeStyle"
           ></iframe>
         </div>
       </div>
@@ -83,7 +60,9 @@
     </div>
 
     <div v-if="viewMode === 'raw'" class="p-4 grow">
-      <div v-if="loadingRaw" class="text-gray-500">Loading raw email...</div>
+      <div v-if="loadingRaw" class="flex items-center justify-center h-full">
+        <Spinner size="6" />
+      </div>
       <CodeViewer v-else :content="rawContent" />
     </div>
 
@@ -108,6 +87,7 @@
   import MailHeaders from './MailHeaders.vue'
   import Toggle from '@/components/shared/Toggle/Toggle.vue'
   import ButtonGroup from '@/components/shared/ButtonGroup/ButtonGroup.vue'
+  import Spinner from '@/components/shared/Spinner/Spinner.vue'
 
   const props = defineProps<{
     email: EmailRecord
@@ -137,40 +117,70 @@
     },
   ]
 
-  const iframeContainerStyle = computed(() => {
-    const screenSize = mailLayoutStore.screenSize
-    if (!screenSize) {
-      return {}
-    }
-    const maxWidths: Record<ScreenSize, string> = {
-      [ScreenSize.Mobile]: '375px',
-      [ScreenSize.Tablet]: '768px',
-      [ScreenSize.Desktop]: '100%',
-    }
-    const style: Record<string, string> = {
-      maxWidth: maxWidths[screenSize],
-    }
-    if (screenSize === ScreenSize.Mobile) {
-      style.width = '375px'
-      style.aspectRatio = '9/18'
-      style.height = 'auto'
-      style.flexShrink = '0'
-    }
-    return style
+  const renderedWrapperClass = computed(() => {
+    return [
+      'w-full overflow-auto flex justify-center',
+      { 'h-full': mailLayoutStore.screenSize === ScreenSize.Desktop },
+    ]
   })
 
-  // Computed property for device mockup styling
-  const deviceMockupClass = computed(() => {
-    const screenSize = mailLayoutStore.screenSize
-    if (screenSize === ScreenSize.Mobile) {
-      return 'bg-gray-900 rounded-[2.5rem] p-2 border-4 border-gray-800'
-    } else if (screenSize === ScreenSize.Tablet) {
-      return 'bg-gray-900 rounded-xl p-3 border-4 border-gray-800'
+  const iframeWrapperClass = computed(() => {
+    switch (mailLayoutStore.screenSize) {
+      case ScreenSize.Mobile:
+        return 'h-full w-full bg-gray-900 border-4 border-gray-800 p-2 rounded-[2.5rem] '
+      case ScreenSize.Tablet:
+        return 'h-full w-full bg-gray-900 border-4 border-gray-800 p-3 rounded-xl '
+      case ScreenSize.Desktop:
+        return 'h-full w-full'
+      default:
+        return ''
     }
-    return ''
   })
 
-  // Computed property for iframe URL that updates when blocking state changes
+  const iframeWrapperStyle = computed(() => {
+    switch (mailLayoutStore.screenSize) {
+      case ScreenSize.Mobile:
+        return {
+          maxWidth: '375px',
+          width: '375px',
+          aspectRatio: '9/18',
+          height: 'auto',
+          flexShrink: '0',
+        }
+      case ScreenSize.Tablet:
+        return {
+          maxWidth: '768px',
+          width: '768px',
+          aspectRatio: '4/3',
+          height: 'auto',
+          flexShrink: '0',
+        }
+      case ScreenSize.Desktop:
+        return {
+          maxWidth: '100%',
+        }
+      default:
+        return {}
+    }
+  })
+
+  const iframeClass = computed(() => {
+    switch (mailLayoutStore.screenSize) {
+      case ScreenSize.Mobile:
+        return 'border-0 bg-white rounded-4xl w-full h-full'
+      case ScreenSize.Tablet:
+        return 'border-0 bg-white rounded-lg h-full w-full'
+      case ScreenSize.Desktop:
+        return 'border-0 bg-white h-full w-full'
+      default:
+        return ''
+    }
+  })
+
+  const iframeStyle = computed(() => ({
+    zoom: mailLayoutStore.mailContentZoom,
+  }))
+
   const renderedUrl = computed(() => {
     if (!props.email.body_html) return ''
     const allowRemote = mailLayoutStore.allowRemoteContent
@@ -189,36 +199,10 @@
     }
   }
 
-  // Watch viewMode to fetch content when switching tabs
   watch(
     () => props.viewMode,
     (newValue: ViewMode) => {
-      if (newValue === 'raw') {
-        loadRawEmail()
-      } else if (newValue === 'rendered' && props.email.body_html) {
-        // Set loading state briefly when switching to rendered tab
-        loadingRendered.value = true
-        // The iframe will load the content, so we can clear loading after a short delay
-        setTimeout(() => {
-          loadingRendered.value = false
-        }, 100)
-      }
-    },
-    { immediate: true }
-  )
-
-  // Watch allowRemoteContent to trigger iframe reload
-  watch(
-    () => mailLayoutStore.allowRemoteContent,
-    () => {
-      // The iframe src will change, triggering a reload
-      // Set loading state briefly
-      if (props.viewMode === 'rendered' && props.email.body_html) {
-        loadingRendered.value = true
-        setTimeout(() => {
-          loadingRendered.value = false
-        }, 100)
-      }
+      if (newValue === 'raw') loadRawEmail()
     }
   )
 </script>

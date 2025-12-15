@@ -6,9 +6,7 @@
       :emails="emails"
       :loading="loading"
       :error="error"
-      :has-next-page="hasNextPage"
-      :loading-more="loadingMore"
-      @load-more="loadMore"
+      @load-more="fetchNextPage"
     />
 
     <div class="grow">
@@ -32,7 +30,6 @@
     inbox: 0,
   })
   const loading = ref(false)
-  const loadingMore = ref(false)
   const error = ref<string | null>(null)
   const currentPage = ref(1)
   const hasNextPage = ref(false)
@@ -46,23 +43,18 @@
     }
   }
 
-  const fetchMails = async (reset: boolean = true) => {
+  const fetchPage = async (page: number, append: boolean) => {
+    if (loading.value) return
+
+    loading.value = true
+    error.value = null
+    const search = searchStore.query
+
     try {
-      if (reset) {
-        loading.value = true
-        currentPage.value = 1
-        emails.value = []
-      } else {
-        loadingMore.value = true
-      }
-      error.value = null
-      const search = searchStore.query.trim() || undefined
-      const response = await apiClient.inbox(currentPage.value, search)
-      if (reset) {
-        emails.value = response.emails
-      } else {
-        emails.value = [...emails.value, ...response.emails]
-      }
+      const response = await apiClient.inbox(page, search)
+      emails.value = append
+        ? [...emails.value, ...response.emails]
+        : response.emails
       counts.value = response.counts
       currentPage.value = response.pagination.page
       hasNextPage.value =
@@ -72,16 +64,24 @@
         err instanceof Error ? err.message : 'Failed to fetch emails'
     } finally {
       loading.value = false
-      loadingMore.value = false
     }
+  }
+
+  const fetchInitialMails = async () => {
+    await fetchPage(1, false)
+  }
+
+  const fetchNextPage = async () => {
+    if (!hasNextPage.value) return
+
+    const nextPage = currentPage.value + 1
+    await fetchPage(nextPage, true)
   }
 
   const handleNewMail = (email: EmailListRecord) => {
     fetchCounts()
 
-    if (searchStore.query.trim()) {
-      return
-    }
+    if (searchStore.query) return
 
     const existingIds = new Set(emails.value.map(e => e.id))
     if (existingIds.has(email.id)) {
@@ -92,38 +92,15 @@
   }
 
   const handleEmailRead = (email: EmailListRecord) => {
-    fetchCounts()
-
-    if (searchStore.query.trim()) {
-      return
-    }
-
     const index = emails.value.findIndex(e => e.id === email.id)
-    if (index !== -1) {
-      emails.value[index] = email
-    } else {
-      emails.value = [email, ...emails.value]
-    }
+    if (index !== -1) emails.value[index] = email
   }
 
   const handleEmailDeleted = (emailId: string) => {
     fetchCounts()
 
-    if (searchStore.query.trim()) {
-      return
-    }
-
     const index = emails.value.findIndex(e => e.id === emailId)
-    if (index !== -1) {
-      emails.value.splice(index, 1)
-    }
-  }
-
-  const loadMore = async () => {
-    if (!loadingMore.value && hasNextPage.value) {
-      currentPage.value += 1
-      await fetchMails(false)
-    }
+    if (index !== -1) emails.value.splice(index, 1)
   }
 
   useWebSocket(
@@ -149,7 +126,7 @@
   )
 
   onMounted(() => {
-    fetchMails()
+    fetchInitialMails()
   })
 
   watch(
@@ -159,7 +136,7 @@
         clearTimeout(searchTimeout)
       }
       searchTimeout = setTimeout(() => {
-        fetchMails()
+        fetchInitialMails()
       }, 300)
     }
   )

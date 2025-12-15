@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-full bg-white">
     <div v-if="loading" class="flex items-center justify-center h-full">
-      <div class="text-gray-500">Loading email...</div>
+      <Spinner size="6" />
     </div>
 
     <div v-else-if="error" class="flex items-center justify-center h-full">
@@ -31,6 +31,7 @@
   import MailHeader from './MailHeader.vue'
   import MailAttachments from './MailAttachments.vue'
   import MailContent from './MailContent.vue'
+  import Spinner from '@/components/shared/Spinner/Spinner.vue'
 
   const route = useRoute()
   const mailId = ref<string>(route.params.id as string)

@@ -32,7 +32,7 @@
 
   const handleInput = (event: Event) => {
     const target = event.target as HTMLInputElement
-    emit('update:modelValue', target.value)
+    emit('update:modelValue', target.value.trim())
   }
 
   const handleEscape = () => {

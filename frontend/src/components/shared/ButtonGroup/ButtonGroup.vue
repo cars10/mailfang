@@ -8,7 +8,7 @@
       :key="option.value"
       class="border border-gray-300 flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-100 hover:shadow-sm outline-primary focus:border-primary"
       :class="{
-        'bg-gray-100': modelValue === option.value,
+        'bg-gray-100 z-10': modelValue === option.value,
         'rounded-s': index === 0,
         'rounded-e': index === props.options.length - 1,
       }"

@@ -17,8 +17,11 @@
       </div>
 
       <div class="overflow-y-auto">
-        <div v-if="loading" class="flex items-center justify-center p-8">
-          <div class="text-gray-500">Loading emails...</div>
+        <div
+          v-if="loading && emails.length === 0"
+          class="flex items-center justify-center p-8"
+        >
+          <Spinner size="6" />
         </div>
 
         <div v-else-if="error" class="flex items-center justify-center p-8">
@@ -52,7 +55,7 @@
                 >
                   <PaperClipIcon
                     v-if="mail.has_attachments"
-                    class="h-3 text-gray-500"
+                    class="h-4 text-gray-500"
                   />
                   {{ formatDate(mail.created_at) }}
                 </div>
@@ -65,6 +68,13 @@
               </div>
             </div>
           </div>
+          <div
+            v-if="emails.length > 0"
+            ref="loadMoreSentinel"
+            class="flex items-center justify-center p-6"
+          >
+            <Spinner v-if="loading" size="6" />
+          </div>
         </template>
       </div>
     </vue-resizable>
@@ -72,7 +82,8 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted } from 'vue'
+  import { ref } from 'vue'
+  import { useIntersectionObserver } from '@vueuse/core'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import { useSearchStore } from '@/stores/Search'
   import { PaperClipIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
@@ -80,60 +91,32 @@
   import { useRouter, useRoute } from 'vue-router'
   import type { EmailListRecord } from '@/types/email'
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
+  import Spinner from '@/components/shared/Spinner/Spinner.vue'
 
   interface Props {
     emails: EmailListRecord[]
     loading: boolean
     error: string | null
-    hasNextPage: boolean
-    loadingMore: boolean
   }
 
   defineProps<Props>()
-  defineEmits<{
-    'load-more': []
-  }>()
+  const emit = defineEmits<{ 'load-more': [] }>()
 
   const searchStore = useSearchStore()
-
-  const windowHeight = ref(window.innerHeight)
-
-  const updateWindowHeight = () => {
-    windowHeight.value = window.innerHeight
-  }
-
-  onMounted(() => {
-    window.addEventListener('resize', updateWindowHeight)
-    updateWindowHeight()
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('resize', updateWindowHeight)
-  })
 
   const formatDate = (dateString: string) => {
     const today = new Date()
     const mailDate = new Date(dateString)
 
-    // Check if same day
     const isToday =
       mailDate.getDate() === today.getDate() &&
       mailDate.getMonth() === today.getMonth() &&
       mailDate.getFullYear() === today.getFullYear()
 
     if (isToday) {
-      // Show time only (HH:MM format)
-      return mailDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })
+      return mailDate.toLocaleTimeString()
     } else {
-      // Show date & month (e.g., "Jan 15")
-      return mailDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })
+      return mailDate.toLocaleDateString()
     }
   }
 
@@ -148,4 +131,16 @@
   const openMail = (id: string) => {
     router.push(`/emails/inbox/${id}`)
   }
+
+  const loadMoreSentinel = ref<HTMLElement | null>(null)
+
+  useIntersectionObserver(
+    loadMoreSentinel,
+    ([entry]: IntersectionObserverEntry[]) => {
+      if (!entry?.isIntersecting) return
+
+      emit('load-more')
+    },
+    { root: loadMoreSentinel.value?.parentElement, threshold: 0.5 }
+  )
 </script>

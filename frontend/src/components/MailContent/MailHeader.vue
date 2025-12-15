@@ -74,7 +74,7 @@
         <div class="grid grid-cols-[auto_1fr] gap-x-2">
           <div class="flex items-center text-gray-500 select-text">Date:</div>
           <div class="text-gray-600 select-text w-fit">
-            <CopyBadge :text="formatFullDate(email.created_at)" />
+            <CopyBadge :text="formatFullDate(email.date || email.created_at)" />
           </div>
 
           <div class="flex items-center text-gray-500 select-text">Size:</div>
@@ -151,14 +151,6 @@
 
   const formatFullDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
+    return date.toLocaleString()
   }
 </script>

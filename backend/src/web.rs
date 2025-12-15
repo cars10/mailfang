@@ -169,7 +169,7 @@ async fn list_emails(
     Query(params): Query<ListQueryParams>,
 ) -> Result<Json<EmailListResponse>, WebError> {
     let page = params.page.unwrap_or(1);
-    let per_page = 10;
+    let per_page = 20;
     let (emails, total_pages) = get_all_emails(
         &state.pool,
         params.sort.as_deref(),
