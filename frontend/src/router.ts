@@ -9,7 +9,12 @@ const routes = [
   {
     path: '/emails/inbox',
     component: MailLayout,
-    children: [{ path: ':id', component: MailView }],
+    children: [{ path: 'email/:id', component: MailView }],
+  },
+  {
+    path: '/emails/inbox/:recipient',
+    component: MailLayout,
+    children: [{ path: 'email/:id', component: MailView }],
   },
   { path: '/emails/:id/fullscreen', component: FullscreenEmailView },
   { path: '/settings', component: SettingsList },

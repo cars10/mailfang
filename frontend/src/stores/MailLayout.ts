@@ -13,6 +13,7 @@ type MailLayoutState = {
   mailContentZoom: number
   allowRemoteContent: boolean
   screenSize: ScreenSize
+  recipientsCollapsed: boolean
 }
 
 export const useMailLayoutStore = defineStore('mailLayout', {
@@ -22,6 +23,7 @@ export const useMailLayoutStore = defineStore('mailLayout', {
     mailContentZoom: 1.0,
     allowRemoteContent: true,
     screenSize: ScreenSize.Desktop,
+    recipientsCollapsed: false,
   }),
   persist: true,
 })

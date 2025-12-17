@@ -18,7 +18,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Emails::Headers).text().null())
                     .col(ColumnDef::new(Emails::From).string().not_null())
                     .col(ColumnDef::new(Emails::To).string().not_null())
-                    .col(ColumnDef::new(Emails::Recipients).string().not_null())
                     .col(ColumnDef::new(Emails::Size).integer().not_null())
                     .col(ColumnDef::new(Emails::RawData).text().not_null())
                     .col(ColumnDef::new(Emails::BodyText).text().null())
@@ -89,10 +88,73 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // Recipients table for normalized recipient storage
+        manager
+            .create_table(
+                Table::create()
+                    .table(Recipients::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Recipients::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Recipients::Email)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // Join table between emails and recipients
+        manager
+            .create_table(
+                Table::create()
+                    .table(EmailRecipients::Table)
+                    .if_not_exists()
+                    .col(ColumnDef::new(EmailRecipients::EmailId).string().not_null())
+                    .col(
+                        ColumnDef::new(EmailRecipients::RecipientId)
+                            .string()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .col(EmailRecipients::EmailId)
+                            .col(EmailRecipients::RecipientId),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_email_recipients_email_id")
+                            .from(EmailRecipients::Table, EmailRecipients::EmailId)
+                            .to(Emails::Table, Emails::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk_email_recipients_recipient_id")
+                            .from(EmailRecipients::Table, EmailRecipients::RecipientId)
+                            .to(Recipients::Table, Recipients::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(EmailRecipients::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Recipients::Table).to_owned())
+            .await?;
         manager
             .drop_table(Table::drop().table(EmailAttachments::Table).to_owned())
             .await?;
@@ -113,7 +175,6 @@ enum Emails {
     Headers,
     From,
     To,
-    Recipients,
     Size,
     RawData,
     BodyText,
@@ -136,4 +197,18 @@ enum EmailAttachments {
     ContentId,
     Headers,
     CreatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Recipients {
+    Table,
+    Id,
+    Email,
+}
+
+#[derive(DeriveIden)]
+enum EmailRecipients {
+    Table,
+    EmailId,
+    RecipientId,
 }

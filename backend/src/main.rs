@@ -50,8 +50,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     info!(component = "smtp", email_id = %email_id, "Email saved to database");
                     let email_result = db::get_email_by_id(&db, &email_id).await;
 
-                    let email_list_record = if let Ok(Some(email_record)) = email_result {
-                        Some(db::EmailListRecord {
+                    if let Ok(Some(email_record)) = email_result {
+                        let email_list_record = db::EmailListRecord {
                             id: email_record.id,
                             subject: email_record.subject,
                             date: email_record.date,
@@ -60,17 +60,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             to: email_record.to,
                             read: email_record.read,
                             has_attachments: !email_record.attachments.is_empty(),
-                        })
-                    } else {
-                        None
-                    };
-
-                    if let Some(email) = email_list_record {
+                        };
                         broadcast
                             .send(web::WebSocketMessage {
                                 event: web::WebSocketEvent::NewMail,
-                                email: Some(email),
+                                email: Some(email_list_record),
                                 email_id: None,
+                                recipients: Some(email_record.recipients),
                             })
                             .ok();
                     }

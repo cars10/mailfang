@@ -10,10 +10,9 @@ pub struct Model {
     pub message_id: Option<String>,
     pub subject: Option<String>,
     pub date: Option<DateTime<Utc>>,
-    pub headers: Option<String>, // Stored as JSON string in DB
+    pub headers: Option<String>,
     pub from: String,
-    pub to: String,         // Stored as JSON string in DB - from "To" header
-    pub recipients: String, // Stored as JSON string in DB - all SMTP envelope recipients
+    pub to: String,
     pub size: i32,
     pub raw_data: String,
     pub body_text: Option<String>,

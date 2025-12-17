@@ -1,6 +1,7 @@
 use crate::db::{
-    DbPool, delete_all_emails, delete_email_by_id, get_all_emails, get_attachment_by_id,
-    get_email_by_id, get_email_stats, get_raw_data_by_id, mark_email_read,
+    DbPool, ListParams, ListQuery, delete_all_emails, delete_email_by_id, get_all_emails,
+    get_attachment_by_id, get_email_by_id, get_email_stats, get_emails_by_recipient,
+    get_raw_data_by_id, mark_email_read,
 };
 use crate::entities::emails;
 use axum::{
@@ -22,7 +23,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum WebError {
@@ -47,6 +48,7 @@ impl IntoResponse for WebError {
 
 impl From<sea_orm::DbErr> for WebError {
     fn from(err: sea_orm::DbErr) -> Self {
+        error!(component = "web", error = ?err, "Database error");
         WebError::Database(err)
     }
 }
@@ -72,6 +74,8 @@ pub struct WebSocketMessage {
     pub email: Option<crate::db::EmailListRecord>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recipients: Option<Vec<String>>,
 }
 
 pub type BroadcastSender = broadcast::Sender<WebSocketMessage>;
@@ -122,19 +126,21 @@ struct PaginationInfo {
     total_pages: u64,
 }
 
+impl PaginationInfo {
+    fn from_query(query: &ListQuery, total_pages: u64) -> Self {
+        Self {
+            page: query.page,
+            per_page: query.per_page,
+            total_pages,
+        }
+    }
+}
+
 #[derive(serde::Serialize)]
 struct EmailListResponse {
     emails: Vec<crate::db::EmailListRecord>,
     counts: crate::db::EmailStats,
     pagination: PaginationInfo,
-}
-
-#[derive(Deserialize)]
-struct ListQueryParams {
-    sort: Option<String>,
-    order: Option<String>,
-    search: Option<String>,
-    page: Option<u64>,
 }
 
 pub async fn run_web_server(
@@ -148,6 +154,10 @@ pub async fn run_web_server(
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/api/emails", get(list_emails).delete(delete_all))
+        .route(
+            "/api/emails/inbox/{recipient}",
+            get(list_emails_by_recipient_endpoint),
+        )
         .route("/api/emails/sidebar", get(get_email_stats_endpoint))
         .route("/api/emails/{id}", get(get_email).delete(delete_email))
         .route("/api/emails/{id}/raw", get(get_raw_email))
@@ -166,28 +176,30 @@ pub async fn run_web_server(
 
 async fn list_emails(
     State(state): State<AppState>,
-    Query(params): Query<ListQueryParams>,
+    Query(params): Query<ListParams>,
 ) -> Result<Json<EmailListResponse>, WebError> {
-    let page = params.page.unwrap_or(1);
-    let per_page = 20;
-    let (emails, total_pages) = get_all_emails(
-        &state.pool,
-        params.sort.as_deref(),
-        params.order.as_deref(),
-        params.search.as_deref(),
-        page,
-        per_page,
-    )
-    .await?;
+    let query: ListQuery = params.into();
+    let (emails, total_pages) = get_all_emails(&state.pool, &query).await?;
     let counts = get_email_stats(&state.pool).await?;
     Ok(Json(EmailListResponse {
         emails,
         counts,
-        pagination: PaginationInfo {
-            page,
-            per_page,
-            total_pages,
-        },
+        pagination: PaginationInfo::from_query(&query, total_pages),
+    }))
+}
+
+async fn list_emails_by_recipient_endpoint(
+    State(state): State<AppState>,
+    Path(recipient): Path<String>,
+    Query(params): Query<ListParams>,
+) -> Result<Json<EmailListResponse>, WebError> {
+    let query: ListQuery = params.into();
+    let (emails, total_pages) = get_emails_by_recipient(&state.pool, &recipient, &query).await?;
+    let counts = get_email_stats(&state.pool).await?;
+    Ok(Json(EmailListResponse {
+        emails,
+        counts,
+        pagination: PaginationInfo::from_query(&query, total_pages),
     }))
 }
 
@@ -220,6 +232,7 @@ async fn get_email(
                 event: WebSocketEvent::EmailRead,
                 email: Some(email_list_record),
                 email_id: None,
+                recipients: None,
             })
             .ok();
         Ok(Json(updated_email))
@@ -255,6 +268,7 @@ async fn delete_email(
                 event: WebSocketEvent::EmailDeleted,
                 email: None,
                 email_id: Some(id),
+                recipients: None,
             })
             .ok();
         Ok(StatusCode::NO_CONTENT)

@@ -47,6 +47,18 @@ export class ApiClient {
     )
   }
 
+  async inboxByRecipient(
+    recipient: string,
+    page: number = 1,
+    search?: string
+  ): Promise<EmailListResponse> {
+    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
+    const encodedRecipient = encodeURIComponent(recipient)
+    return this.request<EmailListResponse>(
+      `/api/emails/inbox/${encodedRecipient}?page=${page}${searchParam}`
+    )
+  }
+
   async getSidebar(): Promise<EmailCounts> {
     return this.request<EmailCounts>('/api/emails/sidebar')
   }

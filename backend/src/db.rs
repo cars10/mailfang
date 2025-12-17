@@ -1,14 +1,38 @@
-use crate::entities::{email_attachments, emails};
+use crate::entities::{email_attachments, email_recipients, emails, recipients};
 use crate::smtp::Email;
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, Insert, PaginatorTrait,
-    QueryFilter, QueryOrder, Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, Insert,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Set,
+    TransactionTrait,
 };
 use std::sync::Arc;
 use uuid::Uuid;
 
 pub type DbPool = Arc<DatabaseConnection>;
+
+#[derive(Clone, Default, serde::Deserialize)]
+pub struct ListParams {
+    pub search: Option<String>,
+    pub page: Option<u64>,
+    pub per_page: Option<u64>,
+}
+
+pub struct ListQuery {
+    pub search: Option<String>,
+    pub page: u64,
+    pub per_page: u64,
+}
+
+impl From<ListParams> for ListQuery {
+    fn from(params: ListParams) -> Self {
+        Self {
+            search: params.search,
+            page: params.page.unwrap_or(1),
+            per_page: params.per_page.unwrap_or(20),
+        }
+    }
+}
 
 #[derive(serde::Serialize)]
 pub struct EmailRecord {
@@ -35,7 +59,7 @@ pub struct EmailListRecord {
     pub date: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub from: String,
-    pub to: Vec<String>, // From "To" header
+    pub to: Vec<String>,
     pub read: bool,
     pub has_attachments: bool,
 }
@@ -133,7 +157,6 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
             .map(|h| serde_json::to_string(h).unwrap())),
         from: Set(message.from.clone()),
         to: Set(serde_json::to_string(&message.to).unwrap()),
-        recipients: Set(serde_json::to_string(&message.recipients).unwrap()),
         size: Set(message.size as i32),
         raw_data: Set(message.data.clone()),
         body_text: Set(Some(message.body_text.clone())),
@@ -144,6 +167,35 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
         created_at: Set(Utc::now()),
     };
     Insert::one(email_model).exec(&txn).await?;
+
+    for recipient_email in &message.recipients {
+        if recipient_email.trim().is_empty() {
+            continue;
+        }
+
+        let recipient_id = if let Some(existing) = recipients::Entity::find()
+            .filter(recipients::Column::Email.eq(recipient_email.clone()))
+            .one(&txn)
+            .await?
+        {
+            existing.id
+        } else {
+            let new_id = Uuid::new_v4().to_string();
+            let active = recipients::ActiveModel {
+                id: Set(new_id.clone()),
+                email: Set(recipient_email.clone()),
+            };
+            recipients::Entity::insert(active).exec(&txn).await?;
+            new_id
+        };
+
+        let join = email_recipients::ActiveModel {
+            email_id: Set(message.id.to_string()),
+            recipient_id: Set(recipient_id),
+        };
+        // Ignore duplicate errors if the combination already exists.
+        let _ = email_recipients::Entity::insert(join).exec(&txn).await;
+    }
 
     // Insert attachments using the pre-generated IDs
     for (attachment, attachment_id) in message.attachments.iter().zip(attachment_ids.iter()) {
@@ -168,17 +220,6 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
     Ok(message.id.to_string())
 }
 
-fn get_sort_column(sort: Option<&str>) -> emails::Column {
-    match sort {
-        Some("subject") => emails::Column::Subject,
-        Some("from") => emails::Column::From,
-        Some("received_at") | Some("date") => emails::Column::Date,
-        Some("created_at") => emails::Column::CreatedAt,
-        Some("size") => emails::Column::Size,
-        _ => emails::Column::CreatedAt,
-    }
-}
-
 fn apply_search_filter(
     query: sea_orm::Select<emails::Entity>,
     search: Option<&str>,
@@ -191,24 +232,11 @@ fn apply_search_filter(
                 .add(emails::Column::MessageId.like(&search_pattern))
                 .add(emails::Column::From.like(&search_pattern))
                 .add(emails::Column::To.like(&search_pattern))
-                .add(emails::Column::Recipients.like(&search_pattern))
                 .add(emails::Column::BodyText.like(&search_pattern))
                 .add(emails::Column::BodyHtml.like(&search_pattern)),
         )
     } else {
         query
-    }
-}
-
-fn apply_sorting(
-    query: sea_orm::Select<emails::Entity>,
-    sort: Option<&str>,
-    order: Option<&str>,
-) -> sea_orm::Select<emails::Entity> {
-    let sort_column = get_sort_column(sort);
-    match order {
-        Some("asc") | Some("ASC") => query.order_by_asc(sort_column),
-        _ => query.order_by_desc(sort_column),
     }
 }
 
@@ -222,11 +250,10 @@ fn convert_emails_to_list_records(email_models: Vec<emails::Model>) -> Vec<Email
 fn email_model_to_record(
     email: emails::Model,
     attachments: Vec<email_attachments::Model>,
+    recipients: Vec<String>,
 ) -> EmailRecord {
     let to: Vec<String> =
         serde_json::from_str(&email.to).unwrap_or_else(|_| vec![email.from.clone()]);
-    let recipients: Vec<String> =
-        serde_json::from_str(&email.recipients).unwrap_or_else(|_| vec![]);
 
     EmailRecord {
         id: email.id,
@@ -281,18 +308,14 @@ fn email_model_to_list_record(email: emails::Model) -> EmailListRecord {
 
 pub async fn get_all_emails(
     db: &DatabaseConnection,
-    sort: Option<&str>,
-    order: Option<&str>,
-    search: Option<&str>,
-    page: u64,
-    per_page: u64,
+    query_params: &ListQuery,
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
     let query = emails::Entity::find();
-    let query = apply_search_filter(query, search);
-    let query = apply_sorting(query, sort, order);
-    let paginator = query.paginate(db, per_page);
+    let query = apply_search_filter(query, query_params.search.as_deref());
+    let query = query.order_by_desc(emails::Column::CreatedAt);
+    let paginator = query.paginate(db, query_params.per_page);
     let num_pages = paginator.num_pages().await?;
-    let email_models = paginator.fetch_page(page - 1).await?;
+    let email_models = paginator.fetch_page(query_params.page - 1).await?;
     let records = convert_emails_to_list_records(email_models);
     Ok((records, num_pages))
 }
@@ -310,7 +333,24 @@ pub async fn get_email_by_id(
             .filter(email_attachments::Column::EmailId.eq(&email.id))
             .all(db)
             .await?;
-        Ok(Some(email_model_to_record(email, attachments)))
+
+        // Load recipients for this email from the join table.
+        let recipient_rows = email_recipients::Entity::find()
+            .filter(email_recipients::Column::EmailId.eq(&email.id))
+            .find_also_related(recipients::Entity)
+            .all(db)
+            .await?;
+
+        let recipients_vec: Vec<String> = recipient_rows
+            .into_iter()
+            .filter_map(|(_join, recipient_opt)| recipient_opt.map(|r| r.email))
+            .collect();
+
+        Ok(Some(email_model_to_record(
+            email,
+            attachments,
+            recipients_vec,
+        )))
     } else {
         Ok(None)
     }
@@ -377,12 +417,87 @@ pub async fn get_raw_data_by_id(
 }
 
 #[derive(serde::Serialize, Clone)]
+pub struct RecipientStats {
+    pub recipient: String,
+    pub count: u64,
+}
+
+#[derive(serde::Serialize, Clone)]
 pub struct EmailStats {
     pub inbox: u64,
+    pub recipients: Vec<RecipientStats>,
+}
+
+#[derive(Debug, FromQueryResult)]
+struct RecipientStatsRow {
+    recipient: String,
+    count: i64,
 }
 
 pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbErr> {
     let inbox_count = emails::Entity::find().count(db).await?;
 
-    Ok(EmailStats { inbox: inbox_count })
+    use sea_orm::JoinType;
+
+    // Aggregate counts per recipient using GROUP BY in the database.
+    // Start from the join table to avoid ambiguous recipients aliases.
+    let rows: Vec<RecipientStatsRow> = email_recipients::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            email_recipients::Relation::Recipient.def(),
+        )
+        .select_only()
+        .column_as(recipients::Column::Email, "recipient")
+        .column_as(email_recipients::Column::EmailId.count(), "count")
+        .group_by(recipients::Column::Email)
+        .order_by_asc(recipients::Column::Email)
+        .into_model::<RecipientStatsRow>()
+        .all(db)
+        .await?;
+
+    let recipients: Vec<RecipientStats> = rows
+        .into_iter()
+        .map(|row| RecipientStats {
+            recipient: row.recipient,
+            count: row.count as u64,
+        })
+        .collect();
+
+    Ok(EmailStats {
+        inbox: inbox_count,
+        recipients,
+    })
+}
+
+pub async fn get_emails_by_recipient(
+    db: &DatabaseConnection,
+    recipient_email: &str,
+    query_params: &ListQuery,
+) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
+    // Find the recipient row first. If it doesn't exist, return empty results.
+    if let Some(recipient) = recipients::Entity::find()
+        .filter(recipients::Column::Email.eq(recipient_email))
+        .one(db)
+        .await?
+    {
+        // Use a subquery on the join table to avoid ambiguous aliases when joining.
+        let subquery = email_recipients::Entity::find()
+            .select_only()
+            .column(email_recipients::Column::EmailId)
+            .filter(email_recipients::Column::RecipientId.eq(recipient.id))
+            .into_query();
+
+        let query = emails::Entity::find().filter(emails::Column::Id.in_subquery(subquery));
+
+        let query = apply_search_filter(query, query_params.search.as_deref());
+        let query = query.order_by_desc(emails::Column::CreatedAt);
+        let paginator = query.paginate(db, query_params.per_page);
+        let num_pages = paginator.num_pages().await?;
+        let email_models = paginator.fetch_page(query_params.page - 1).await?;
+        let records = convert_emails_to_list_records(email_models);
+
+        Ok((records, num_pages))
+    } else {
+        Ok((Vec::new(), 0))
+    }
 }

@@ -9,7 +9,7 @@
         :to="link.to"
         :title="link.label"
         active-class="text-primary bg-gray-200"
-        class="flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] h-[40px]"
+        class="flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222]"
       >
         <div class="flex flex-row gap-2 items-center">
           <component :is="link.icon" :class="['h-4']" />
@@ -24,6 +24,51 @@
           {{ link.count }}
         </span>
       </router-link>
+    </div>
+
+    <div class="mt-2">
+      <button
+        class="flex w-full flex-row items-center justify-between px-2 py-1 rounded-sm text-[#222] hover:bg-gray-200 cursor-pointer"
+        type="button"
+        @click="
+          mailLayoutStore.recipientsCollapsed =
+            !mailLayoutStore.recipientsCollapsed
+        "
+      >
+        <div class="flex flex-row items-center gap-2">
+          <component
+            :is="
+              mailLayoutStore.recipientsCollapsed
+                ? ChevronRightIcon
+                : ChevronDownIcon
+            "
+            class="h-4"
+          />
+          <div v-if="!mailLayoutStore.sidebarCollapsed">Inboxes</div>
+        </div>
+      </button>
+
+      <div
+        v-if="
+          !mailLayoutStore.recipientsCollapsed &&
+          !mailLayoutStore.sidebarCollapsed
+        "
+        class="mt-1 flex flex-col gap-1 ml-4 pl-2 border-l border-gray-300"
+      >
+        <router-link
+          v-for="recipient in props.counts.recipients"
+          :key="recipient.recipient"
+          :to="`/emails/inbox/${encodeURIComponent(recipient.recipient)}`"
+          :title="recipient.recipient"
+          active-class="text-primary bg-gray-200"
+          class="flex flex-row gap-1 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-sm text-[#222]"
+        >
+          <span class="truncate">{{ recipient.recipient }}</span>
+          <span class="text-xs text-gray-600 font-mono">
+            {{ recipient.count }}
+          </span>
+        </router-link>
+      </div>
     </div>
 
     <div class="flex flex-col gap-2 mt-4">
@@ -59,6 +104,8 @@
     ChevronDoubleLeftIcon,
     ChevronDoubleRightIcon,
     TrashIcon,
+    ChevronDownIcon,
+    ChevronRightIcon,
   } from '@heroicons/vue/24/outline'
   import type { EmailCounts } from '@/types/email'
   import { apiClient } from '@/api/client'
@@ -80,7 +127,7 @@
     {
       to: '/emails/inbox',
       icon: InboxIcon,
-      label: 'Inbox',
+      label: 'All emails',
       count: props.counts.inbox,
     },
   ])

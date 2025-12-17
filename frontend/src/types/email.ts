@@ -31,13 +31,19 @@ export interface EmailListRecord {
   date: string | null
   created_at: string
   from: string
-  to: string[] // From "To" header
+  to: string[]
   read: boolean
   has_attachments: boolean
 }
 
+export interface RecipientCount {
+  recipient: string
+  count: number
+}
+
 export interface EmailCounts {
   inbox: number
+  recipients: RecipientCount[]
 }
 
 export interface PaginationInfo {

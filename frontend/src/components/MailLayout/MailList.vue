@@ -129,7 +129,12 @@
   }
 
   const openMail = (id: string) => {
-    router.push(`/emails/inbox/${id}`)
+    const recipient = route.params.recipient as string | undefined
+    if (recipient) {
+      router.push(`/emails/inbox/${encodeURIComponent(recipient)}/email/${id}`)
+    } else {
+      router.push(`/emails/inbox/email/${id}`)
+    }
   }
 
   const loadMoreSentinel = ref<HTMLElement | null>(null)

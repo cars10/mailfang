@@ -23,11 +23,14 @@
   import type { EmailListRecord, EmailCounts } from '@/types/email'
   import MailSidebar from './MailSidebar.vue'
   import MailList from './MailList.vue'
+  import { useRoute } from 'vue-router'
 
   const searchStore = useSearchStore()
+  const route = useRoute()
   const emails = ref<EmailListRecord[]>([])
   const counts = ref<EmailCounts>({
     inbox: 0,
+    recipients: [],
   })
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -49,9 +52,12 @@
     loading.value = true
     error.value = null
     const search = searchStore.query
+    const recipient = route.params.recipient as string | undefined
 
     try {
-      const response = await apiClient.inbox(page, search)
+      const response = recipient
+        ? await apiClient.inboxByRecipient(recipient, page, search)
+        : await apiClient.inbox(page, search)
       emails.value = append
         ? [...emails.value, ...response.emails]
         : response.emails
@@ -78,7 +84,7 @@
     await fetchPage(nextPage, true)
   }
 
-  const handleNewMail = (email: EmailListRecord) => {
+  const handleNewMail = (email: EmailListRecord, recipients?: string[]) => {
     fetchCounts()
 
     if (searchStore.query) return
@@ -88,7 +94,16 @@
       return
     }
 
-    emails.value = [email, ...emails.value]
+    const currentRecipient = route.params.recipient as string | undefined
+
+    if (!currentRecipient) {
+      emails.value = [email, ...emails.value]
+      return
+    }
+
+    if (recipients && recipients.includes(currentRecipient)) {
+      emails.value = [email, ...emails.value]
+    }
   }
 
   const handleEmailRead = (email: EmailListRecord) => {
@@ -109,7 +124,7 @@
         try {
           const message = JSON.parse(event.data)
           if (message.event === 'new_mail' && message.email) {
-            handleNewMail(message.email)
+            handleNewMail(message.email, message.recipients)
           } else if (message.event === 'email_read' && message.email) {
             handleEmailRead(message.email)
           } else if (message.event === 'email_deleted' && message.email_id) {
@@ -138,6 +153,13 @@
       searchTimeout = setTimeout(() => {
         fetchInitialMails()
       }, 300)
+    }
+  )
+
+  watch(
+    () => route.params.recipient,
+    () => {
+      fetchInitialMails()
     }
   )
 </script>
