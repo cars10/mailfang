@@ -23,7 +23,8 @@ tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "net", "io-
 tokio-util = { version = "0.7", features = ["codec"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "trace"] }
-mailparse = "0.16"
+mail-parser = "0.11"
+smtp-proto = "0.2"
 uuid = { version = "1.18", features = ["v4"] }
 base64 = "0.22"
 md5 = "0.7"

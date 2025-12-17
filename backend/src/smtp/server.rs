@@ -1,9 +1,9 @@
 use super::parser::{EmailAttachment, parse_email_details};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use futures::{SinkExt, StreamExt};
 use r2d2::Pool;
 use rand::Rng;
-use regex::Regex;
+use smtp_proto::Request;
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -271,100 +271,94 @@ impl Session {
     }
 
     fn handle_command(&mut self, line: &str) -> Result<Vec<String>> {
-        let (command, arg) = split_command(line);
-        match command.as_str() {
-            "HELO" => {
+        // Parse SMTP command using smtp-proto
+        // smtp-proto expects CRLF-terminated lines, so we append \r\n
+        let line_with_crlf = format!("{}\r\n", line);
+        let request = Request::parse(&mut line_with_crlf.as_bytes().iter())
+            .map_err(|_| SmtpError::Protocol("Invalid command syntax"))?;
+
+        match request {
+            Request::Helo { host } => {
                 self.greeted = true;
-                Ok(vec![format!("250 Hello {}", arg.unwrap_or("client"))])
+                Ok(vec![format!("250 Hello {}", host)])
             }
-            "EHLO" => {
+            Request::Ehlo { host } => {
                 self.greeted = true;
                 // Advertise AUTH PLAIN, LOGIN, and CRAM-MD5 capabilities
                 Ok(vec![
-                    format!("250-Hello {}", arg.unwrap_or("client")),
+                    format!("250-Hello {}", host),
                     "250-AUTH PLAIN LOGIN CRAM-MD5".into(),
                     "250 SIZE 26214400".into(),
                 ])
             }
-            "MAIL" => {
+            Request::Mail { from } => {
                 ensure(self.greeted, "503 Send HELO/EHLO first")?;
                 ensure(self.authenticated, "530 Authentication required")?;
-                let addr = parse_address(arg.unwrap_or(""))?;
-                self.mail_from = Some(addr);
+                self.mail_from = Some(from.address.to_string());
                 self.recipients.clear();
                 Ok(vec!["250 Sender OK".into()])
             }
-            "RCPT" => {
+            Request::Rcpt { to } => {
                 ensure(self.mail_from.is_some(), "503 Need MAIL FROM first")?;
-                let addr = parse_address(arg.unwrap_or(""))?;
-                self.recipients.push(addr);
+                self.recipients.push(to.address.to_string());
                 Ok(vec!["250 Recipient OK".into()])
             }
-            "DATA" => {
+            Request::Data => {
                 ensure(!self.recipients.is_empty(), "503 Need RCPT TO first")?;
                 self.state = SessionState::Data;
                 self.buffer.clear();
                 Ok(vec!["354 End data with <CR><LF>.<CR><LF>".into()])
             }
-            "RSET" => {
+            Request::Rset => {
                 self.reset_transaction();
                 Ok(vec!["250 Reset state".into()])
             }
-            "NOOP" => Ok(vec!["250 OK".into()]),
-            "AUTH" => {
+            Request::Noop { .. } => Ok(vec!["250 OK".into()]),
+            Request::Auth {
+                mechanism,
+                initial_response,
+            } => {
                 ensure(self.greeted, "503 Send HELO/EHLO first")?;
-                let auth_arg = arg.unwrap_or("");
-                let auth_parts: Vec<&str> = auth_arg.splitn(2, char::is_whitespace).collect();
-                let auth_type = auth_parts
-                    .get(0)
-                    .map(|s| s.to_uppercase())
-                    .unwrap_or_default();
 
-                match auth_type.as_str() {
-                    "PLAIN" => {
-                        if auth_parts.len() > 1 {
-                            // AUTH PLAIN <base64> - credentials provided in same line
-                            let credentials = auth_parts[1];
-                            if self.validate_plain_auth(credentials) {
-                                self.state = SessionState::Command;
-                                self.auth_state = AuthState::None;
-                                self.authenticated = true;
-                                Ok(vec!["235 Authentication successful".into()])
-                            } else {
-                                Ok(vec!["535 Authentication failed".into()])
-                            }
+                if mechanism == smtp_proto::AUTH_PLAIN {
+                    if !initial_response.is_empty() {
+                        // AUTH PLAIN <base64> - credentials provided in same line
+                        if self.validate_plain_auth(&initial_response) {
+                            self.state = SessionState::Command;
+                            self.auth_state = AuthState::None;
+                            self.authenticated = true;
+                            Ok(vec!["235 Authentication successful".into()])
                         } else {
-                            // AUTH PLAIN - wait for credentials on next line
-                            self.state = SessionState::Auth;
-                            self.auth_state = AuthState::WaitingForPlainCredentials;
-                            Ok(vec!["334 ".into()]) // Base64 prompt (empty means just send credentials)
+                            Ok(vec!["535 Authentication failed".into()])
                         }
-                    }
-                    "LOGIN" => {
+                    } else {
+                        // AUTH PLAIN - wait for credentials on next line
                         self.state = SessionState::Auth;
-                        self.auth_state = AuthState::WaitingForLoginUsername;
-                        Ok(vec!["334 VXNlcm5hbWU6".into()]) // "Username:" in base64
+                        self.auth_state = AuthState::WaitingForPlainCredentials;
+                        Ok(vec!["334 ".into()]) // Base64 prompt (empty means just send credentials)
                     }
-                    "CRAM-MD5" => {
-                        // Generate a challenge (typically timestamp-based or random)
-                        let challenge = self.generate_cram_md5_challenge();
-                        self.state = SessionState::Auth;
-                        self.auth_state = AuthState::WaitingForCramMd5Response {
-                            challenge: challenge.clone(),
-                        };
-                        // Send base64-encoded challenge
-                        use base64::Engine;
-                        let encoded =
-                            base64::engine::general_purpose::STANDARD.encode(challenge.as_bytes());
-                        Ok(vec![format!("334 {}", encoded)])
-                    }
-                    _ => {
-                        // Unknown auth type
-                        Ok(vec!["504 Unrecognized authentication type".into()])
-                    }
+                } else if mechanism == smtp_proto::AUTH_LOGIN {
+                    self.state = SessionState::Auth;
+                    self.auth_state = AuthState::WaitingForLoginUsername;
+                    Ok(vec!["334 VXNlcm5hbWU6".into()]) // "Username:" in base64
+                } else if mechanism == smtp_proto::AUTH_CRAM_MD5 {
+                    // Generate a challenge (typically timestamp-based or random)
+                    let challenge = self.generate_cram_md5_challenge();
+                    self.state = SessionState::Auth;
+                    self.auth_state = AuthState::WaitingForCramMd5Response {
+                        challenge: challenge.clone(),
+                    };
+                    // Send base64-encoded challenge
+                    use base64::Engine;
+                    let encoded =
+                        base64::engine::general_purpose::STANDARD.encode(challenge.as_bytes());
+                    Ok(vec![format!("334 {}", encoded)])
+                } else {
+                    // Unknown auth type
+                    Ok(vec!["504 Unrecognized authentication type".into()])
                 }
             }
-            "QUIT" => {
+            Request::Quit => {
                 self.quit = true;
                 Ok(vec!["221 Bye".into()])
             }
@@ -377,14 +371,6 @@ impl Session {
             let data = self.buffer.join("\r\n");
             let parsed_details = parse_email_details(&data);
 
-            // Parse Date header into DateTime, fallback to current time if parsing fails
-            let date = parsed_details.date.and_then(|date_str| {
-                DateTime::parse_from_rfc2822(&date_str)
-                    .or_else(|_| DateTime::parse_from_rfc3339(&date_str))
-                    .ok()
-                    .map(|dt| dt.with_timezone(&Utc))
-            });
-
             // Use "To" header addresses if available, otherwise fall back to SMTP envelope recipients
             let to_addresses = if !parsed_details.to_addresses.is_empty() {
                 parsed_details.to_addresses
@@ -396,7 +382,7 @@ impl Session {
                 id: Uuid::new_v4(),
                 message_id: parsed_details.message_id.clone(),
                 subject: parsed_details.subject.clone(),
-                date,
+                date: parsed_details.date,
                 headers: parsed_details.headers.clone(),
                 from: self
                     .mail_from
@@ -684,27 +670,6 @@ pub struct Email {
     pub body_text: String,
     pub body_html: String,
     pub attachments: Vec<EmailAttachment>,
-}
-
-fn split_command(input: &str) -> (String, Option<&str>) {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return ("".into(), None);
-    }
-
-    let mut parts = trimmed.splitn(2, char::is_whitespace);
-    let command = parts.next().unwrap().to_uppercase();
-    let arg = parts.next().map(str::trim);
-    (command, arg)
-}
-
-fn parse_address(arg: &str) -> Result<String> {
-    Regex::new(r"(?i)<([^>]+)>")
-        .expect("valid address regex")
-        .captures(arg)
-        .and_then(|cap| cap.get(1))
-        .map(|m| m.as_str().to_string())
-        .ok_or(SmtpError::InvalidAddress)
 }
 
 fn ensure(condition: bool, err: &'static str) -> Result<()> {

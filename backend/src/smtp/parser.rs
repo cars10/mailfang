@@ -1,4 +1,5 @@
-use mailparse::{DispositionType, MailAddr, MailHeaderMap, ParsedMail, addrparse, parse_mail};
+use chrono::{DateTime, Utc};
+use mail_parser::{MessageParser, MimeHeaders, PartType};
 use std::collections::HashMap;
 use tracing::warn;
 
@@ -15,75 +16,63 @@ pub(super) struct ParsedEmailDetails {
     pub attachments: Vec<EmailAttachment>,
     pub message_id: Option<String>,
     pub subject: Option<String>,
-    pub date: Option<String>,
+    pub date: Option<DateTime<Utc>>,
     pub headers: Option<serde_json::Value>,
     pub body_text: String,
     pub body_html: String,
     pub to_addresses: Vec<String>,
 }
 
-fn extract_all_headers(headers: &[mailparse::MailHeader<'_>]) -> serde_json::Value {
-    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
-
-    for header in headers {
-        let key = header.get_key().to_string();
-        let value = header.get_value();
-
-        header_map.entry(key).or_insert_with(Vec::new).push(value);
-    }
-
-    serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
-}
-
-fn parse_to_addresses(headers: &[mailparse::MailHeader<'_>]) -> Vec<String> {
-    if let Some(to_header) = headers
-        .iter()
-        .find(|h| h.get_key().eq_ignore_ascii_case("To"))
-    {
-        let to_value = to_header.get_value();
-        match addrparse(&to_value) {
-            Ok(addr_list) => {
-                addr_list
-                    .iter()
-                    .filter_map(|addr| {
-                        match addr {
-                            MailAddr::Single(info) => Some(info.addr.clone()),
-                            MailAddr::Group(_) => None, // Groups don't have direct addresses
-                        }
-                    })
-                    .collect()
-            }
-            Err(_) => Vec::new(),
-        }
-    } else {
-        Vec::new()
-    }
-}
-
 pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
-    match parse_mail(raw.as_bytes()) {
-        Ok(mail) => {
-            let mut attachments = Vec::new();
-            collect_attachments(&mail, &mut attachments);
-            let (body_text, body_html) = extract_bodies(&mail);
-            let headers = extract_all_headers(mail.headers.as_slice());
-            let to_addresses = parse_to_addresses(mail.headers.as_slice());
+    let parser = MessageParser::default();
+    match parser.parse(raw.as_bytes()) {
+        Some(message) => {
+            // Extract all headers as JSON
+            let headers = extract_all_headers(&message);
+
+            // Extract To addresses
+            let to_addresses = extract_to_addresses(&message);
+
+            // Extract body text and HTML
+            // Note: mail-parser auto-generates HTML from text if no HTML part exists
+            // We only want actual HTML content, so check if there's a real text/html part
+            let body_text = message
+                .body_text(0)
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let body_html = message
+                .html_part(0)
+                .filter(|part| {
+                    // Only use if it's actually text/html content type
+                    part.content_type()
+                        .map(|ct| ct.ctype() == "text" && ct.subtype() == Some("html"))
+                        .unwrap_or(false)
+                })
+                .and_then(|_| message.body_html(0))
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+
+            // Extract attachments
+            let attachments = collect_attachments(&message);
+
+            // Convert mail-parser DateTime to chrono DateTime<Utc>
+            let date = message
+                .date()
+                .and_then(|dt| DateTime::from_timestamp(dt.to_timestamp(), 0));
+
             ParsedEmailDetails {
                 attachments,
-                message_id: mail.headers.get_first_value("Message-ID"),
-                subject: mail.headers.get_first_value("Subject"),
-                date: mail.headers.get_first_value("Date"),
+                message_id: message.message_id().map(|s| s.to_string()),
+                subject: message.subject().map(|s| s.to_string()),
+                date,
                 headers: Some(headers),
                 body_text,
                 body_html,
                 to_addresses,
             }
         }
-        Err(err) => {
-            warn!(
-                component = "smtp",
-                "Failed to parse mail for metadata: {}", err
-            );
+        None => {
+            warn!(component = "smtp", "Failed to parse mail for metadata");
             ParsedEmailDetails {
                 attachments: Vec::new(),
                 message_id: None,
@@ -98,96 +87,91 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
     }
 }
 
-fn collect_attachments(node: &ParsedMail<'_>, out: &mut Vec<EmailAttachment>) {
-    let disposition = node.get_content_disposition();
-    let is_attachment = matches!(disposition.disposition, DispositionType::Attachment)
-        || disposition
-            .params
-            .iter()
-            .any(|(k, _)| k.eq_ignore_ascii_case("filename"));
+fn extract_all_headers(message: &mail_parser::Message<'_>) -> serde_json::Value {
+    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    // Also collect inline parts with Content-ID (for CID images)
-    let has_content_id = node.headers.get_first_value("Content-ID").is_some();
-    let is_inline = matches!(disposition.disposition, DispositionType::Inline);
+    for header in message.headers() {
+        let key = header.name().to_string();
+        let value = header.value().as_text().unwrap_or_default().to_string();
 
-    if is_attachment || (is_inline && has_content_id) {
-        if let Ok(body) = node.get_body_raw() {
-            let filename = disposition
-                .params
-                .iter()
-                .find(|(k, _)| k.eq_ignore_ascii_case("filename"))
-                .map(|(_, v)| v.clone());
-
-            // Extract Content-Description for filename fallback
-            let content_description = node.headers.get_first_value("Content-Description");
-
-            // Extract Content-ID, removing angle brackets if present
-            let content_id = node.headers.get_first_value("Content-ID").map(|cid| {
-                // Remove angle brackets if present: <cid> -> cid
-                cid.trim_start_matches('<')
-                    .trim_end_matches('>')
-                    .to_string()
-            });
-
-            // Extract all headers for this attachment
-            let headers = extract_all_headers(node.headers.as_slice());
-
-            out.push(EmailAttachment {
-                filename: filename.or_else(|| content_description.clone()),
-                mime_type: node.ctype.mimetype.clone(),
-                data: body,
-                content_id,
-                headers: Some(headers),
-            });
-        }
+        header_map.entry(key).or_default().push(value);
     }
 
-    for child in &node.subparts {
-        collect_attachments(child, out);
-    }
+    serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
 }
 
-fn extract_bodies(mail: &ParsedMail<'_>) -> (String, String) {
-    let mut text_body: Option<String> = None;
-    let mut html_body: Option<String> = None;
-
-    extract_body_recursive(mail, &mut text_body, &mut html_body);
-
-    (
-        text_body.unwrap_or_else(|| String::new()),
-        html_body.unwrap_or_else(|| String::new()),
-    )
+fn extract_to_addresses(message: &mail_parser::Message<'_>) -> Vec<String> {
+    message
+        .to()
+        .map(|addr| {
+            addr.iter()
+                .filter_map(|a| a.address.as_ref().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-fn extract_body_recursive(
-    node: &ParsedMail<'_>,
-    text_body: &mut Option<String>,
-    html_body: &mut Option<String>,
-) {
-    let disposition = node.get_content_disposition();
-    let is_attachment = matches!(disposition.disposition, DispositionType::Attachment)
-        || disposition
-            .params
-            .iter()
-            .any(|(k, _)| k.eq_ignore_ascii_case("filename"));
+fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachment> {
+    let mut attachments = Vec::new();
 
-    // Skip attachments
-    if !is_attachment {
-        let mimetype = &node.ctype.mimetype;
-        if mimetype == "text/plain" && text_body.is_none() {
-            if let Ok(body) = node.get_body() {
-                *text_body = Some(body);
-            }
-        } else if mimetype == "text/html" && html_body.is_none() {
-            if let Ok(body) = node.get_body() {
-                *html_body = Some(body);
-            }
-        }
+    for attachment in message.attachments() {
+        // Get filename from Content-Disposition or Content-Type name parameter
+        let filename = attachment.attachment_name().map(|s| s.to_string());
+
+        // Get Content-ID, removing angle brackets if present
+        let content_id = attachment.content_id().map(|cid| {
+            cid.trim_start_matches('<')
+                .trim_end_matches('>')
+                .to_string()
+        });
+
+        // Get MIME type
+        let mime_type = attachment
+            .content_type()
+            .map(|ct| {
+                if let Some(subtype) = ct.subtype() {
+                    format!("{}/{}", ct.ctype(), subtype)
+                } else {
+                    ct.ctype().to_string()
+                }
+            })
+            .unwrap_or_else(|| "application/octet-stream".to_string());
+
+        // Get attachment body data
+        let data = match &attachment.body {
+            PartType::Binary(data) | PartType::InlineBinary(data) => data.to_vec(),
+            PartType::Text(text) => text.as_bytes().to_vec(),
+            PartType::Html(html) => html.as_bytes().to_vec(),
+            PartType::Message(msg) => msg.raw_message().to_vec(),
+            PartType::Multipart(_) => Vec::new(),
+        };
+
+        // Extract headers for this attachment part
+        let headers = extract_part_headers(attachment);
+
+        attachments.push(EmailAttachment {
+            filename,
+            mime_type,
+            data,
+            content_id,
+            headers: Some(headers),
+        });
     }
 
-    for child in &node.subparts {
-        extract_body_recursive(child, text_body, html_body);
+    attachments
+}
+
+fn extract_part_headers(part: &mail_parser::MessagePart<'_>) -> serde_json::Value {
+    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
+
+    for header in part.headers() {
+        let key = header.name().to_string();
+        let value = header.value().as_text().unwrap_or_default().to_string();
+
+        header_map.entry(key).or_default().push(value);
     }
+
+    serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
 }
 
 #[cfg(test)]
@@ -226,7 +210,8 @@ Content-Type: text/plain\r\n\
 \r\n\
 Body\r\n";
         let details = parse_email_details(raw);
-        assert_eq!(details.message_id.as_deref(), Some("<1234@example.com>"));
+        // mail-parser returns message-id without angle brackets
+        assert_eq!(details.message_id.as_deref(), Some("1234@example.com"));
         assert!(details.attachments.is_empty());
     }
 }
