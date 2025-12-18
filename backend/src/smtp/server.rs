@@ -65,21 +65,18 @@ pub struct SmtpServer {
 impl SmtpServer {
     /// Create a new SMTP server builder
     /// Defaults to max_connections = num_cpus / 2
-    /// Reads SMTP_USERNAME and SMTP_PASSWORD from environment variables
-    /// If not set, all authentication attempts will be accepted
+    /// If auth credentials are not set, all authentication attempts will be accepted
     pub fn new(addr: SocketAddr) -> Self {
         let default_max = thread::available_parallelism()
             .map(|n| n.get() / 2)
             .unwrap_or(2)
             .max(1);
-        let auth_username = std::env::var("SMTP_USERNAME").ok();
-        let auth_password = std::env::var("SMTP_PASSWORD").ok();
         Self {
             addr,
             on_receive: None,
             max_connections: default_max,
-            auth_username,
-            auth_password,
+            auth_username: None,
+            auth_password: None,
         }
     }
 
@@ -89,6 +86,14 @@ impl SmtpServer {
         F: Fn(&Email) + Send + Sync + 'static,
     {
         self.on_receive = Some(Arc::new(callback));
+        self
+    }
+
+    /// Set SMTP authentication credentials
+    /// If not set, all authentication attempts will be accepted
+    pub fn auth(mut self, username: Option<String>, password: Option<String>) -> Self {
+        self.auth_username = username;
+        self.auth_password = password;
         self
     }
 

@@ -29,6 +29,7 @@ reset_db:
 build_prod:
 	cd frontend && npm install && npm run build
 	cd backend && cargo build --release --features embed-frontend
+	strip backend/target/release/mailfang-backend
 
 build_docker_prod:
 	docker build -t mailfang:latest .

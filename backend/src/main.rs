@@ -1,6 +1,6 @@
-use mailfang_backend::{db, logging, migration, smtp, web};
+use mailfang::{config, db, logging, migration, smtp, web};
+use clap::Parser;
 use sea_orm_migration::prelude::*;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{fs, io};
@@ -10,25 +10,14 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     logging::init();
-    let smtp_port = std::env::var("SMTP_PORT")
-        .unwrap_or_else(|_| "2525".to_string())
-        .parse::<u16>()?;
-    let web_port = std::env::var("WEB_PORT")
-        .unwrap_or_else(|_| "3000".to_string())
-        .parse::<u16>()?;
+    let config = config::Config::parse();
 
-    let smtp_addr: SocketAddr = format!("0.0.0.0:{}", smtp_port)
-        .parse()
-        .expect("valid SMTP listen addr");
-    let web_addr: SocketAddr = format!("0.0.0.0:{}", web_port)
-        .parse()
-        .expect("valid web listen addr");
+    let smtp_addr = config.smtp_socket_addr();
+    let web_addr = config.web_socket_addr();
 
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:///app/mailfang.db".to_string());
-    ensure_sqlite_db_file(&database_url)?;
+    ensure_sqlite_db_file(&config.database_url)?;
     let db = Arc::new(
-        sea_orm::Database::connect(&database_url)
+        sea_orm::Database::connect(&config.database_url)
             .await
             .expect("Failed to connect to database"),
     );
@@ -81,7 +70,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     };
 
-    let smtp_server = smtp::SmtpServer::new(smtp_addr).on_receive(save_callback);
+    let smtp_server = smtp::SmtpServer::new(smtp_addr)
+        .auth(config.smtp_username.clone(), config.smtp_password.clone())
+        .on_receive(save_callback);
 
     let static_dir = std::env::var("STATIC_DIR").ok();
 

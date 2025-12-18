@@ -1,5 +1,5 @@
 [package]
-name = "mailfang-backend"
+name = "mailfang"
 version = "0.1.0"
 edition = "2024"
 
@@ -33,6 +33,7 @@ hex = "0.4"
 static-serve = { version = "0.4", optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "chrono"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 
 [profile.release]
 lto = true

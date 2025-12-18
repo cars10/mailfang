@@ -1293,13 +1293,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "mailfang-backend"
+name = "mailfang"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
  "base64",
  "chrono",
+ "clap",
  "futures",
  "futures-util",
  "hex",
