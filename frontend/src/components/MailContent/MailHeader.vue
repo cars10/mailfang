@@ -30,35 +30,53 @@
       <div>
         <div class="grid grid-cols-[auto_1fr] gap-x-2">
           <template v-if="email.from">
-            <div class="flex items-center text-gray-500 select-text">From:</div>
+            <div
+              class="flex items-center text-gray-500 select-text text-nowrap"
+            >
+              From:
+            </div>
             <div class="text-gray-600 select-text w-fit">
               <CopyBadge :text="email.from" />
             </div>
           </template>
 
           <template v-if="email.to.length > 0">
-            <div class="flex items-center text-gray-500 select-text">To:</div>
+            <div
+              class="flex items-center text-gray-500 select-text text-nowrap"
+            >
+              To:
+            </div>
             <div class="text-gray-600 select-text w-fit">
               <CopyBadge :text="email.to.join(', ')" />
             </div>
           </template>
 
           <template v-if="email.headers?.Cc">
-            <div class="flex items-center text-gray-500 select-text">CC:</div>
+            <div
+              class="flex items-center text-gray-500 select-text text-nowrap"
+            >
+              CC:
+            </div>
             <div class="text-gray-600 select-text w-fit">
               <CopyBadge :text="email.headers?.Cc?.join(', ') || ''" />
             </div>
           </template>
 
           <template v-if="email.headers?.Bcc">
-            <div class="flex items-center text-gray-500 select-text">BCC:</div>
+            <div
+              class="flex items-center text-gray-500 select-text text-nowrap"
+            >
+              BCC:
+            </div>
             <div class="text-gray-600 select-text w-fit">
               <CopyBadge :text="email.headers?.Bcc?.join(', ') || ''" />
             </div>
           </template>
 
           <template v-if="email.headers?.['Reply-To']">
-            <div class="flex items-center text-gray-500 select-text">
+            <div
+              class="flex items-center text-gray-500 select-text text-nowrap"
+            >
               Reply-To:
             </div>
             <div class="text-gray-600 select-text w-fit">

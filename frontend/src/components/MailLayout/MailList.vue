@@ -4,8 +4,9 @@
       :active="['r']"
       :min-width="350"
       :max-width="800"
-      :width="mailLayoutStore.inboxWidth || 350"
+      :width="mailLayoutStore.inboxWidth || DEFAULT_INBOX_WIDTH"
       class="flex flex-col"
+      @dblclick="handleDoubleClick"
       @resize:end="handleResizeEnd"
     >
       <div class="p-4 border-b border-gray-300">
@@ -92,6 +93,7 @@
   import type { EmailListRecord } from '@/types/email'
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
+  import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
 
   interface Props {
     emails: EmailListRecord[]
@@ -124,6 +126,13 @@
   const router = useRouter()
 
   const mailLayoutStore = useMailLayoutStore()
+  const handleDoubleClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement
+    if (target.classList.contains('resizable-r')) {
+      mailLayoutStore.inboxWidth = DEFAULT_INBOX_WIDTH
+    }
+  }
+
   const handleResizeEnd = ({ width }: { width: number }) => {
     mailLayoutStore.inboxWidth = width
   }
