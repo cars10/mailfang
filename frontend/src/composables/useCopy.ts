@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { copyToClipboard } from '@/helpers/copy'
 
-export function useCopy(getText: () => string) {
+export function useCopy(getText: () => string, timeout: number = 2000) {
   const copied = ref(false)
 
   const handleCopy = async () => {
@@ -9,7 +9,7 @@ export function useCopy(getText: () => string) {
     copied.value = true
     setTimeout(() => {
       copied.value = false
-    }, 2000)
+    }, timeout)
   }
 
   return {
