@@ -9,26 +9,27 @@ export type ScreenSize = (typeof ScreenSize)[keyof typeof ScreenSize]
 
 export const DEFAULT_INBOX_WIDTH = 350
 export const DEFAULT_SIDEBAR_WIDTH = 250
+export const DEFAULT_RECIPIENTS_HEIGHT = 420
 
 type MailLayoutState = {
   inboxWidth: number
   sidebarWidth: number
-  sidebarCollapsed: boolean
   mailContentZoom: number
   allowRemoteContent: boolean
   screenSize: ScreenSize
   recipientsCollapsed: boolean
+  recipientsHeight: number
 }
 
 export const useMailLayoutStore = defineStore('mailLayout', {
   state: (): MailLayoutState => ({
     inboxWidth: DEFAULT_INBOX_WIDTH,
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
-    sidebarCollapsed: false,
     mailContentZoom: 1.0,
     allowRemoteContent: true,
     screenSize: ScreenSize.Desktop,
     recipientsCollapsed: false,
+    recipientsHeight: DEFAULT_RECIPIENTS_HEIGHT,
   }),
   persist: true,
 })
