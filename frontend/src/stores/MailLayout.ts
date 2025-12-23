@@ -7,9 +7,9 @@ export const ScreenSize = {
 } as const
 export type ScreenSize = (typeof ScreenSize)[keyof typeof ScreenSize]
 
-export const DEFAULT_INBOX_WIDTH = 350
+export const DEFAULT_INBOX_WIDTH = 400
 export const DEFAULT_SIDEBAR_WIDTH = 250
-export const DEFAULT_RECIPIENTS_HEIGHT = 420
+export const DEFAULT_RECIPIENTS_HEIGHT = 28 * 8
 
 type MailLayoutState = {
   inboxWidth: number

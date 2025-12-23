@@ -16,7 +16,6 @@ html {
 
 body {
   min-height: 100%;
-  @apply bg-sky-50;
   @apply flex;
 }
 

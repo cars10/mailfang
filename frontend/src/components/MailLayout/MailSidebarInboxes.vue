@@ -1,7 +1,7 @@
 <template>
   <div class="mt-2">
     <div
-      class="flex w-full flex-row items-center justify-between gap-2 rounded-sm text-[#222] h-[32px]"
+      class="flex w-full flex-row items-center justify-between gap-2 rounded-sm h-6"
     >
       <button
         class="flex flex-row shrink grow items-center gap-2 hover:bg-gray-200 rounded-sm px-2 py-1 cursor-pointer overflow-hidden min-w-4"
@@ -37,7 +37,7 @@
       v-if="!mailLayoutStore.recipientsCollapsed"
       :active="['b']"
       :min-height="20"
-      :max-height="mailLayoutStore.recipientsHeight"
+      :height="mailLayoutStore.recipientsHeight"
       :style="{ width: '100%' }"
       class="mt-1 pb-1 overflow-hidden border-b border-gray-300 w-full"
       @dblclick="handleDoubleClick"
