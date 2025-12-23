@@ -36,14 +36,14 @@
     <vue-resizable
       v-if="!mailLayoutStore.recipientsCollapsed"
       :active="['b']"
-      :min-height="64"
-      :height="mailLayoutStore.recipientsHeight"
+      :min-height="20"
+      :max-height="mailLayoutStore.recipientsHeight"
       :style="{ width: '100%' }"
       class="mt-1 pb-1 overflow-hidden border-b border-gray-300 w-full"
       @dblclick="handleDoubleClick"
       @resize:end="handleRecipientsResizeEnd"
     >
-      <div class="flex flex-col gap-1 overflow-y-auto h-full ml-1">
+      <div class="flex flex-col gap-1 overflow-y-auto ml-1">
         <router-link
           v-for="recipient in filteredRecipients"
           :key="recipient.recipient"
