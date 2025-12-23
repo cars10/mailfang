@@ -1,5 +1,5 @@
-use mailfang::{config, db, logging, migration, smtp, web};
 use clap::Parser;
+use mailfang::{config, db, logging, migration, smtp, web};
 use sea_orm_migration::prelude::*;
 use std::path::PathBuf;
 use std::sync::Arc;

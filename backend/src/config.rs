@@ -29,20 +29,20 @@ pub struct Config {
     #[arg(long, env = "WEB_HOST", default_value = "0.0.0.0:3000")]
     pub web_host: String,
 
-    #[arg(long, env = "DATABASE_URL", default_value = "sqlite:///app/mailfang.db")]
+    #[arg(
+        long,
+        env = "DATABASE_URL",
+        default_value = "sqlite:///app/mailfang.db"
+    )]
     pub database_url: String,
 }
 
 impl Config {
     pub fn smtp_socket_addr(&self) -> SocketAddr {
-        self.smtp_host
-            .parse()
-            .expect("valid SMTP listen addr")
+        self.smtp_host.parse().expect("valid SMTP listen addr")
     }
 
     pub fn web_socket_addr(&self) -> SocketAddr {
-        self.web_host
-            .parse()
-            .expect("valid web listen addr")
+        self.web_host.parse().expect("valid web listen addr")
     }
 }
