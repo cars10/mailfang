@@ -39,7 +39,7 @@
       :min-height="20"
       :height="mailLayoutStore.recipientsHeight"
       :style="{ width: '100%' }"
-      class="mt-1 pb-1 overflow-hidden border-b border-gray-300 w-full"
+      class="mt-2 pb-1 overflow-hidden border-b border-gray-300 w-full"
       @dblclick="handleDoubleClick"
       @resize:end="handleRecipientsResizeEnd"
     >
