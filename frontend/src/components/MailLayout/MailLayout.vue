@@ -87,7 +87,11 @@
   const handleNewMail = (email: EmailListRecord, recipients?: string[]) => {
     fetchCounts()
 
-    if (searchStore.query) return
+    if (searchStore.query) {
+      // Refresh the filtered list so a new mail that matches is shown
+      fetchInitialMails()
+      return
+    }
 
     const existingIds = new Set(emails.value.map(e => e.id))
     if (existingIds.has(email.id)) {
