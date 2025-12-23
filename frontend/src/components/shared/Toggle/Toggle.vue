@@ -17,7 +17,7 @@
     </button>
     <label
       v-if="label"
-      class="cursor-pointer text-sm text-gray-600"
+      class="cursor-pointer text-sm text-gray-600 h-full flex items-center"
       for="toggle"
     >
       {{ label }}

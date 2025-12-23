@@ -41,10 +41,10 @@ export class ApiClient {
   }
 
   async inbox(page: number = 1, search?: string): Promise<EmailListResponse> {
-    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
-    return this.request<EmailListResponse>(
-      `/api/emails?page=${page}${searchParam}`
-    )
+    const params = new URLSearchParams()
+    params.set('page', page.toString())
+    if (search) params.set('search', search)
+    return this.request<EmailListResponse>(`/api/emails?${params.toString()}`)
   }
 
   async inboxByRecipient(
@@ -52,10 +52,12 @@ export class ApiClient {
     page: number = 1,
     search?: string
   ): Promise<EmailListResponse> {
-    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
+    const params = new URLSearchParams()
+    params.set('page', page.toString())
+    if (search) params.set('search', search)
     const encodedRecipient = encodeURIComponent(recipient)
     return this.request<EmailListResponse>(
-      `/api/emails/inbox/${encodedRecipient}?page=${page}${searchParam}`
+      `/api/emails/inbox/${encodedRecipient}?${params.toString()}`
     )
   }
 
