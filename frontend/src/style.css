@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 @import 'tailwindcss';
 
 @theme {
-  --default-font-family: 'Inter Tight', sans-serif;
+  --default-font-family: 'Roboto', sans-serif;
   --default-font-optical-sizing: auto;
   --default-font-weight: 400;
   --default-font-style: normal;
