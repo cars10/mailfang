@@ -2,12 +2,7 @@
   <div class="flex flex-row h-full">
     <MailSidebar :counts="counts" />
 
-    <MailList
-      :emails="emails"
-      :loading="loading"
-      :error="error"
-      @load-more="fetchNextPage"
-    />
+    <MailList :emails="emails" :loading="loading" @load-more="fetchNextPage" />
 
     <div class="grow">
       <RouterView />
@@ -33,12 +28,11 @@
     recipients: [],
   })
   const loading = ref(false)
-  const error = ref<string | null>(null)
   const currentPage = ref(1)
   const hasNextPage = ref(false)
-  let searchTimeout: ReturnType<typeof setTimeout> | null = null
+  let searchTimeout: number | null = null
 
-  const fetchCounts = async () => {
+  const fetchSidebar = async () => {
     try {
       counts.value = await apiClient.getSidebar()
     } catch (err) {
@@ -46,12 +40,11 @@
     }
   }
 
-  const fetchPage = async (page: number, append: boolean) => {
+  const fetchEmails = async (page: number, append: boolean) => {
     if (loading.value) return
 
     loading.value = true
-    error.value = null
-    const search = searchStore.query
+    const search = searchStore.query.trim()
     const recipient = route.params.recipient as string | undefined
 
     try {
@@ -66,31 +59,31 @@
       hasNextPage.value =
         response.pagination.page < response.pagination.total_pages
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'Failed to fetch emails'
+      console.error('Failed to fetch emails:', err)
     } finally {
       loading.value = false
     }
   }
 
   const fetchInitialMails = async () => {
-    await fetchPage(1, false)
+    await fetchEmails(1, false)
   }
 
   const fetchNextPage = async () => {
     if (!hasNextPage.value) return
 
     const nextPage = currentPage.value + 1
-    await fetchPage(nextPage, true)
+    await fetchEmails(nextPage, true)
   }
 
   const handleNewMail = (email: EmailListRecord, recipients?: string[]) => {
-    fetchCounts()
-
     if (searchStore.query) {
       // Refresh the filtered list so a new mail that matches is shown
       fetchInitialMails()
+      //  TODO: what if we are on page 5 already, this does not work!!!
       return
+    } else {
+      fetchSidebar()
     }
 
     const existingIds = new Set(emails.value.map(e => e.id))
@@ -116,7 +109,7 @@
   }
 
   const handleEmailDeleted = (emailId: string) => {
-    fetchCounts()
+    fetchSidebar()
 
     const index = emails.value.findIndex(e => e.id === emailId)
     if (index !== -1) emails.value.splice(index, 1)

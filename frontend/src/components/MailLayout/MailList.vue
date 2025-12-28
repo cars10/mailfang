@@ -25,10 +25,6 @@
           <Spinner size="6" />
         </div>
 
-        <div v-else-if="error" class="flex items-center justify-center p-8">
-          <div class="text-red-500">{{ error }}</div>
-        </div>
-
         <div
           v-else-if="emails.length === 0"
           class="flex items-center justify-center p-8"
@@ -98,7 +94,6 @@
   interface Props {
     emails: EmailListRecord[]
     loading: boolean
-    error: string | null
   }
 
   defineProps<Props>()
