@@ -171,6 +171,7 @@
   watch(
     () => route.params.recipient,
     () => {
+      searchStore.query = ''
       fetchInitialMails()
     }
   )
