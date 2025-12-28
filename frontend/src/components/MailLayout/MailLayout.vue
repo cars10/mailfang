@@ -76,22 +76,37 @@
     await fetchEmails(nextPage, true)
   }
 
-  const handleNewMail = (email: EmailListRecord, recipients?: string[]) => {
+  const handleNewMail = async (
+    email: EmailListRecord,
+    recipients?: string[]
+  ) => {
+    const existingIds = new Set(emails.value.map(e => e.id))
+    if (existingIds.has(email.id)) return
+
+    const currentRecipient = route.params.recipient as string | undefined
+
     if (searchStore.query) {
-      // Refresh the filtered list so a new mail that matches is shown
-      fetchInitialMails()
-      //  TODO: what if we are on page 5 already, this does not work!!!
+      const search = searchStore.query.trim()
+      try {
+        const response = currentRecipient
+          ? await apiClient.inboxByRecipient(currentRecipient, 1, search)
+          : await apiClient.inbox(1, search)
+
+        const emailInResults = response.emails.some(e => e.id === email.id)
+
+        if (emailInResults) {
+          emails.value = [email, ...emails.value]
+        }
+
+        counts.value = response.counts
+      } catch (err) {
+        console.error('Failed to check', err)
+      }
+
       return
     } else {
       fetchSidebar()
     }
-
-    const existingIds = new Set(emails.value.map(e => e.id))
-    if (existingIds.has(email.id)) {
-      return
-    }
-
-    const currentRecipient = route.params.recipient as string | undefined
 
     if (!currentRecipient) {
       emails.value = [email, ...emails.value]
