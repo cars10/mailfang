@@ -418,7 +418,6 @@ async fn log_http_request(
         uri = %uri,
         status = status.as_u16(),
         latency_ms = latency.as_millis(),
-        "HTTP request"
     );
 
     response

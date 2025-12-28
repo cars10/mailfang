@@ -36,7 +36,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::spawn(async move {
             match db::save_email(&db, &message).await {
                 Ok(email_id) => {
-                    info!(component = "smtp", email_id = %email_id, "Email saved to database");
                     let email_result = db::get_email_by_id(&db, &email_id).await;
 
                     if let Ok(Some(email_record)) = email_result {

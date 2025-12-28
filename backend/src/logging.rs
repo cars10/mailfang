@@ -12,46 +12,81 @@ where
 {
     fn format_event(
         &self,
-        ctx: &fmt::FmtContext<'_, S, N>,
+        _ctx: &fmt::FmtContext<'_, S, N>,
         mut writer: Writer<'_>,
         event: &tracing::Event<'_>,
     ) -> std::fmt::Result {
-        // Extract component field
+        // Extract component and message fields
         let mut component = None;
-        let mut visitor = ComponentVisitor {
+        let mut message = None;
+        let mut extractor = FieldExtractor {
             component: &mut component,
+            message: &mut message,
         };
-        event.record(&mut visitor);
+        event.record(&mut extractor);
 
         // Write level
         let level = *event.metadata().level();
         write!(writer, "{:5} ", level)?;
 
         // Write component prefix if present
-        if let Some(comp) = component {
+        if let Some(comp) = component.as_deref() {
             write!(writer, "[{}] ", comp)?;
         }
 
-        // Write the rest of the event using the field formatter
-        ctx.field_format().format_fields(writer.by_ref(), event)?;
+        // Write message text if present
+        if let Some(msg) = message.as_deref() {
+            write!(writer, "{} ", msg)?;
+        }
+
+        // Write the rest of the event using a custom field formatter that excludes component and message
+        let mut field_visitor = FilteredFieldVisitor {
+            writer: writer.by_ref(),
+        };
+        event.record(&mut field_visitor);
         writeln!(writer)
     }
 }
 
-struct ComponentVisitor<'a> {
-    component: &'a mut Option<String>,
+struct FilteredFieldVisitor<'a> {
+    writer: Writer<'a>,
 }
 
-impl<'a> tracing::field::Visit for ComponentVisitor<'a> {
+impl<'a> tracing::field::Visit for FilteredFieldVisitor<'a> {
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-        if field.name() == "component" {
-            *self.component = Some(value.to_string());
+        let name = field.name();
+        if name != "component" && name != "message" {
+            let _ = write!(self.writer, "{}={} ", name, value);
         }
     }
 
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        if field.name() == "component" {
-            *self.component = Some(format!("{:?}", value));
+        let name = field.name();
+        if name != "component" && name != "message" {
+            let _ = write!(self.writer, "{}={:?} ", name, value);
+        }
+    }
+}
+
+struct FieldExtractor<'a> {
+    component: &'a mut Option<String>,
+    message: &'a mut Option<String>,
+}
+
+impl<'a> tracing::field::Visit for FieldExtractor<'a> {
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        match field.name() {
+            "component" => *self.component = Some(value.to_string()),
+            "message" => *self.message = Some(value.to_string()),
+            _ => {}
+        }
+    }
+
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        match field.name() {
+            "component" => *self.component = Some(format!("{:?}", value)),
+            "message" => *self.message = Some(format!("{:?}", value)),
+            _ => {}
         }
     }
 }
