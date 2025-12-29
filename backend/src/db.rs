@@ -64,6 +64,21 @@ pub struct EmailListRecord {
     pub has_attachments: bool,
 }
 
+impl From<EmailRecord> for EmailListRecord {
+    fn from(record: EmailRecord) -> Self {
+        Self {
+            id: record.id,
+            subject: record.subject,
+            date: record.date,
+            created_at: record.created_at,
+            from: record.from,
+            to: record.to,
+            read: record.read,
+            has_attachments: !record.attachments.is_empty(),
+        }
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct EmailAttachmentRecord {
     pub id: String,

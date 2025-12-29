@@ -152,7 +152,7 @@ pub async fn run(
     let app_state = AppState { pool, broadcast };
 
     let app = Router::new()
-        .route("/health", get(health_check))
+        .route("/health", get(|| async { StatusCode::OK }))
         .route("/api/emails", get(list_emails).delete(delete_all))
         .route(
             "/api/emails/inbox/{recipient}",
@@ -421,10 +421,6 @@ async fn log_http_request(
     );
 
     response
-}
-
-async fn health_check() -> StatusCode {
-    StatusCode::OK
 }
 
 async fn get_email_stats_endpoint(
