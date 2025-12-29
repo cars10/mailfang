@@ -26,12 +26,8 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
     let parser = MessageParser::default();
     match parser.parse(raw.as_bytes()) {
         Some(message) => {
-            // Extract all headers as JSON
-            let headers = extract_all_headers(&message);
+            let headers = extract_headers(&message.headers());
 
-            // Extract body text and HTML
-            // Note: mail-parser auto-generates HTML from text if no HTML part exists
-            // We only want actual HTML content, so check if there's a real text/html part
             let body_text = message
                 .body_text(0)
                 .map(|s| s.to_string())
@@ -48,10 +44,8 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
                 .map(|s| s.to_string())
                 .unwrap_or_default();
 
-            // Extract attachments
             let attachments = collect_attachments(&message);
 
-            // Convert mail-parser DateTime to chrono DateTime<Utc>
             let date = message
                 .date()
                 .and_then(|dt| DateTime::from_timestamp(dt.to_timestamp(), 0));
@@ -81,10 +75,10 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
     }
 }
 
-fn extract_all_headers(message: &mail_parser::Message<'_>) -> serde_json::Value {
+fn extract_headers(headers: &[mail_parser::Header<'_>]) -> serde_json::Value {
     let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    for header in message.headers() {
+    for header in headers {
         let key = header.name().to_string();
         let value = header.value().as_text().unwrap_or_default().to_string();
 
@@ -108,7 +102,6 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
                 .to_string()
         });
 
-        // Get MIME type
         let mime_type = attachment
             .content_type()
             .map(|ct| {
@@ -120,7 +113,6 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
             })
             .unwrap_or_else(|| "application/octet-stream".to_string());
 
-        // Get attachment body data
         let data = match &attachment.body {
             PartType::Binary(data) | PartType::InlineBinary(data) => data.to_vec(),
             PartType::Text(text) => text.as_bytes().to_vec(),
@@ -129,8 +121,7 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
             PartType::Multipart(_) => Vec::new(),
         };
 
-        // Extract headers for this attachment part
-        let headers = extract_part_headers(attachment);
+        let headers = extract_headers(attachment.headers());
 
         attachments.push(EmailAttachment {
             filename,
@@ -142,19 +133,6 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
     }
 
     attachments
-}
-
-fn extract_part_headers(part: &mail_parser::MessagePart<'_>) -> serde_json::Value {
-    let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
-
-    for header in part.headers() {
-        let key = header.name().to_string();
-        let value = header.value().as_text().unwrap_or_default().to_string();
-
-        header_map.entry(key).or_default().push(value);
-    }
-
-    serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
 }
 
 #[cfg(test)]
