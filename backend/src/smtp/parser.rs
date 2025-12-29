@@ -20,7 +20,6 @@ pub(super) struct ParsedEmailDetails {
     pub headers: Option<serde_json::Value>,
     pub body_text: String,
     pub body_html: String,
-    pub to_addresses: Vec<String>,
 }
 
 pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
@@ -29,9 +28,6 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
         Some(message) => {
             // Extract all headers as JSON
             let headers = extract_all_headers(&message);
-
-            // Extract To addresses
-            let to_addresses = extract_to_addresses(&message);
 
             // Extract body text and HTML
             // Note: mail-parser auto-generates HTML from text if no HTML part exists
@@ -68,7 +64,6 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
                 headers: Some(headers),
                 body_text,
                 body_html,
-                to_addresses,
             }
         }
         None => {
@@ -81,7 +76,6 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
                 headers: None,
                 body_text: String::new(),
                 body_html: String::new(),
-                to_addresses: Vec::new(),
             }
         }
     }
@@ -98,17 +92,6 @@ fn extract_all_headers(message: &mail_parser::Message<'_>) -> serde_json::Value 
     }
 
     serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
-}
-
-fn extract_to_addresses(message: &mail_parser::Message<'_>) -> Vec<String> {
-    message
-        .to()
-        .map(|addr| {
-            addr.iter()
-                .filter_map(|a| a.address.as_ref().map(|s| s.to_string()))
-                .collect()
-        })
-        .unwrap_or_default()
 }
 
 fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachment> {

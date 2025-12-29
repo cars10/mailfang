@@ -27,11 +27,9 @@ pub type Result<T> = std::result::Result<T, SmtpError>;
 /// Callback function type for handling received emails
 pub type OnReceiveCallback = Arc<dyn Fn(&Email) + Send + Sync>;
 
-/// Dummy connection type for r2d2 pool (represents a connection slot)
 #[derive(Debug)]
 struct ConnectionSlot;
 
-/// Connection manager for r2d2 pool
 #[derive(Debug)]
 struct ConnectionManager;
 
@@ -52,7 +50,6 @@ impl r2d2::ManageConnection for ConnectionManager {
     }
 }
 
-/// Basic SMTP server that can receive messages over TCP.
 pub struct SmtpServer {
     addr: SocketAddr,
     on_receive: Option<OnReceiveCallback>,
@@ -62,9 +59,6 @@ pub struct SmtpServer {
 }
 
 impl SmtpServer {
-    /// Create a new SMTP server builder
-    /// Defaults to max_connections = num_cpus / 2
-    /// If auth credentials are not set, all authentication attempts will be accepted
     pub fn new(addr: SocketAddr) -> Self {
         Self {
             addr,
@@ -75,7 +69,6 @@ impl SmtpServer {
         }
     }
 
-    /// Set the callback function to be called when an email is received
     pub fn on_receive<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Email) + Send + Sync + 'static,
@@ -84,16 +77,12 @@ impl SmtpServer {
         self
     }
 
-    /// Set SMTP authentication credentials
-    /// If not set, all authentication attempts will be accepted
     pub fn auth(mut self, username: Option<String>, password: Option<String>) -> Self {
         self.auth_username = username;
         self.auth_password = password;
         self
     }
 
-    /// Set the maximum number of concurrent connections
-    /// Clients will wait when the limit is reached
     pub fn max_connections(mut self, max: usize) -> Self {
         self.max_connections = max.max(1);
         self
@@ -107,7 +96,6 @@ impl SmtpServer {
         let listener = TcpListener::bind(self.addr).await?;
         let on_receive = self.on_receive.clone();
 
-        // Create r2d2 connection pool
         let manager = ConnectionManager;
         let pool = Arc::new(
             Pool::builder()
@@ -135,15 +123,13 @@ impl SmtpServer {
             let auth_username = self.auth_username.clone();
             let auth_password = self.auth_password.clone();
             tokio::spawn(async move {
-                // Get connection from pool - this will wait if we're at the connection limit
-                // r2d2's get() is blocking, so we use spawn_blocking
                 let connection_result = tokio::task::spawn_blocking({
                     let pool = pool.clone();
                     move || pool.get()
                 })
                 .await;
 
-                let _connection = match connection_result {
+                let _ = match connection_result {
                     Ok(Ok(conn)) => conn,
                     Ok(Err(e)) => {
                         error!(component = "smtp", peer = %peer, "Failed to get connection from pool: {}", e);
@@ -155,7 +141,6 @@ impl SmtpServer {
                     }
                 };
 
-                // Connection is automatically returned to pool when dropped
                 if let Err(err) =
                     handle_connection(stream, on_receive, auth_username, auth_password, peer).await
                 {
@@ -225,7 +210,7 @@ struct Session {
     greeted: bool,
     authenticated: bool,
     mail_from: Option<String>,
-    recipients: Vec<String>, // SMTP envelope recipients (RCPT TO)
+    rcpt_to: Vec<String>,
     buffer: Vec<String>,
     messages: Vec<Email>,
     quit: bool,
@@ -250,7 +235,7 @@ impl Session {
             greeted: false,
             authenticated,
             mail_from: None,
-            recipients: Vec::new(),
+            rcpt_to: Vec::new(),
             buffer: Vec::new(),
             messages: Vec::new(),
             quit: false,
@@ -271,7 +256,6 @@ impl Session {
     }
 
     fn handle_command(&mut self, line: &str) -> Result<Vec<String>> {
-        // Parse SMTP command using smtp-proto
         // smtp-proto expects CRLF-terminated lines, so we append \r\n
         let line_with_crlf = format!("{}\r\n", line);
         let request = Request::parse(&mut line_with_crlf.as_bytes().iter())
@@ -295,16 +279,16 @@ impl Session {
                 ensure(self.greeted, "503 Send HELO/EHLO first")?;
                 ensure(self.authenticated, "530 Authentication required")?;
                 self.mail_from = Some(from.address.to_string());
-                self.recipients.clear();
+                self.rcpt_to.clear();
                 Ok(vec!["250 Sender OK".into()])
             }
             Request::Rcpt { to } => {
                 ensure(self.mail_from.is_some(), "503 Need MAIL FROM first")?;
-                self.recipients.push(to.address.to_string());
+                self.rcpt_to.push(to.address.to_string());
                 Ok(vec!["250 Recipient OK".into()])
             }
             Request::Data => {
-                ensure(!self.recipients.is_empty(), "503 Need RCPT TO first")?;
+                ensure(!self.rcpt_to.is_empty(), "503 Need RCPT TO first")?;
                 self.state = SessionState::Data;
                 self.buffer.clear();
                 Ok(vec!["354 End data with <CR><LF>.<CR><LF>".into()])
@@ -371,25 +355,15 @@ impl Session {
             let data = self.buffer.join("\r\n");
             let parsed_details = parse_email_details(&data);
 
-            // Use "To" header addresses if available, otherwise fall back to SMTP envelope recipients
-            let to_addresses = if !parsed_details.to_addresses.is_empty() {
-                parsed_details.to_addresses
-            } else {
-                self.recipients.clone()
-            };
-
             let message = Email {
                 id: Uuid::new_v4(),
                 message_id: parsed_details.message_id.clone(),
                 subject: parsed_details.subject.clone(),
                 date: parsed_details.date,
                 headers: parsed_details.headers.clone(),
-                from: self
-                    .mail_from
-                    .clone()
-                    .unwrap_or_else(|| "unknown@example.com".to_string()),
-                to: to_addresses.clone(),
-                recipients: self.recipients.clone(),
+                from: self.mail_from.clone().unwrap_or_default(),
+                to: self.rcpt_to.clone(),
+                recipients: self.rcpt_to.clone(),
                 size: data.as_bytes().len() as u64,
                 data: data.clone(),
                 body_text: parsed_details.body_text.clone(),
@@ -409,7 +383,6 @@ impl Session {
                 "Email accepted"
             );
 
-            // Call the callback if set
             if let Some(ref callback) = self.on_receive {
                 callback(&message);
             }
@@ -418,7 +391,6 @@ impl Session {
             self.buffer.clear();
             Ok(vec!["250 Message received".into()])
         } else {
-            // Handle dot-stuffing: if a line starts with "..", remove one dot
             let processed_line = if line.starts_with("..") {
                 &line[1..]
             } else {
@@ -501,7 +473,6 @@ impl Session {
     }
 
     fn validate_plain_auth(&self, base64_credentials: &str) -> bool {
-        // If no credentials are configured, accept all
         if self.auth_username.is_none() || self.auth_password.is_none() {
             return true;
         }
@@ -509,7 +480,6 @@ impl Session {
         let expected_username = self.auth_username.as_ref().unwrap();
         let expected_password = self.auth_password.as_ref().unwrap();
 
-        // Decode base64 credentials
         let decoded = match base64_decode(base64_credentials) {
             Ok(d) => d,
             Err(_) => {
@@ -517,7 +487,6 @@ impl Session {
             }
         };
 
-        // PLAIN format: \0username\0password
         let parts: Vec<&str> = decoded.split('\0').collect();
         if parts.len() >= 3 {
             let username = parts[1];
@@ -529,7 +498,6 @@ impl Session {
     }
 
     fn validate_login_auth(&self, username: &str, password: &str) -> bool {
-        // If no credentials are configured, accept all
         if self.auth_username.is_none() || self.auth_password.is_none() {
             return true;
         }
@@ -540,20 +508,17 @@ impl Session {
     }
 
     fn generate_cram_md5_challenge(&self) -> String {
-        // Generate a challenge - typically uses timestamp or random value
-        // Format: <timestamp@hostname> or similar
         use base64::Engine;
         let mut rng = rand::thread_rng();
         let random_bytes: Vec<u8> = (0..16).map(|_| rng.r#gen::<u8>()).collect();
         let challenge = format!(
-            "<{}@mailfang>",
+            "<{}@mailfang.com>",
             base64::engine::general_purpose::STANDARD.encode(&random_bytes)
         );
         challenge
     }
 
     fn validate_cram_md5_auth(&self, response: &str, challenge: &str) -> bool {
-        // If no credentials are configured, accept all
         if self.auth_username.is_none() || self.auth_password.is_none() {
             return true;
         }
@@ -561,13 +526,11 @@ impl Session {
         let expected_username = self.auth_username.as_ref().unwrap();
         let expected_password = self.auth_password.as_ref().unwrap();
 
-        // Decode base64 response
         let decoded = match base64_decode(response) {
             Ok(d) => d,
             Err(_) => return false,
         };
 
-        // CRAM-MD5 format: username<space>HMAC-MD5(challenge, password)
         let parts: Vec<&str> = decoded.splitn(2, ' ').collect();
         if parts.len() != 2 {
             return false;
@@ -580,7 +543,6 @@ impl Session {
             return false;
         }
 
-        // Compute HMAC-MD5(challenge, password) manually
         // HMAC-MD5(K, m) = MD5((K' ⊕ opad) || MD5((K' ⊕ ipad) || m))
         let key = expected_password.as_bytes();
         let mut key_padded = [0u8; 64];
@@ -623,7 +585,7 @@ impl Session {
 
     fn reset_transaction(&mut self) {
         self.mail_from = None;
-        self.recipients.clear();
+        self.rcpt_to.clear();
         self.buffer.clear();
     }
 
@@ -662,9 +624,9 @@ pub struct Email {
     pub subject: Option<String>,
     pub date: Option<chrono::DateTime<Utc>>,
     pub headers: Option<serde_json::Value>,
-    pub from: String,
-    pub to: Vec<String>,         // From "To" header
-    pub recipients: Vec<String>, // All SMTP envelope recipients
+    pub from: String,            // SMTP envelope sender (MAIL FROM)
+    pub to: Vec<String>,         // SMTP envelope recipients (RCPT TO)
+    pub recipients: Vec<String>, // Same as `to` - all SMTP envelope recipients
     pub size: u64,
     pub data: String,
     pub body_text: String,
@@ -848,9 +810,12 @@ mod tests {
 
         let stored = session.last_message().unwrap();
         assert_eq!(stored.from, "sender@example.com");
-        // "to" field should only contain addresses from the "To" header
-        assert_eq!(stored.to, vec!["to@example.com"]);
-        // "recipients" field should contain all SMTP envelope recipients
+        // Both "to" and "recipients" fields should contain all SMTP envelope recipients
+        // Header data is only used when actually requesting headers
+        assert_eq!(
+            stored.to,
+            vec!["to@example.com", "cc@example.com", "bcc@example.com"]
+        );
         assert_eq!(
             stored.recipients,
             vec!["to@example.com", "cc@example.com", "bcc@example.com"]

@@ -15,9 +15,9 @@ export interface EmailRecord {
   date: string | null
   headers: Record<string, string[]> | null
   created_at: string
-  from: string
-  to: string[] // From "To" header
-  recipients: string[] // All SMTP envelope recipients
+  from: string // SMTP envelope sender (MAIL FROM)
+  to: string[] // SMTP envelope recipients (RCPT TO)
+  recipients: string[] // Same as `to` - all SMTP envelope recipients
   size: number
   body_text: string
   body_html: string
