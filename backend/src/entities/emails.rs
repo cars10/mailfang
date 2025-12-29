@@ -12,7 +12,6 @@ pub struct Model {
     pub date: Option<DateTime<Utc>>,
     pub headers: Option<String>,
     pub from: String,
-    pub to: String,
     pub size: i32,
     pub raw_data: String,
     pub body_text: Option<String>,

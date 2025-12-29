@@ -363,7 +363,6 @@ impl Session {
                 headers: parsed_details.headers.clone(),
                 from: self.mail_from.clone().unwrap_or_default(),
                 to: self.rcpt_to.clone(),
-                recipients: self.rcpt_to.clone(),
                 size: data.as_bytes().len() as u64,
                 data: data.clone(),
                 body_text: parsed_details.body_text.clone(),
@@ -624,9 +623,8 @@ pub struct Email {
     pub subject: Option<String>,
     pub date: Option<chrono::DateTime<Utc>>,
     pub headers: Option<serde_json::Value>,
-    pub from: String,            // SMTP envelope sender (MAIL FROM)
-    pub to: Vec<String>,         // SMTP envelope recipients (RCPT TO)
-    pub recipients: Vec<String>, // Same as `to` - all SMTP envelope recipients
+    pub from: String,    // SMTP envelope sender (MAIL FROM)
+    pub to: Vec<String>, // SMTP envelope recipients (RCPT TO)
     pub size: u64,
     pub data: String,
     pub body_text: String,
@@ -720,7 +718,6 @@ mod tests {
         let stored = session.last_message().unwrap();
         assert_eq!(stored.from, "sender@example.com");
         assert_eq!(stored.to, vec!["recipient@example.com"]);
-        assert_eq!(stored.recipients, vec!["recipient@example.com"]);
         assert_eq!(stored.data, "Subject: Hi\r\n\r\nBody line");
         assert_eq!(stored.size, stored.data.as_bytes().len() as u64);
         assert_eq!(stored.body_text, "Body line");
@@ -816,10 +813,7 @@ mod tests {
             stored.to,
             vec!["to@example.com", "cc@example.com", "bcc@example.com"]
         );
-        assert_eq!(
-            stored.recipients,
-            vec!["to@example.com", "cc@example.com", "bcc@example.com"]
-        );
+
         assert!(stored.data.contains("To: to@example.com"));
         assert!(stored.data.contains("Cc: cc@example.com"));
         assert!(stored.data.contains("Bcc: bcc@example.com"));

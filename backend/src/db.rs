@@ -43,8 +43,7 @@ pub struct EmailRecord {
     pub headers: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub from: String,
-    pub to: Vec<String>,         // From "To" header
-    pub recipients: Vec<String>, // All SMTP envelope recipients
+    pub recipients: Vec<String>,
     pub size: u64,
     pub body_text: String,
     pub body_html: String,
@@ -59,7 +58,7 @@ pub struct EmailListRecord {
     pub date: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub from: String,
-    pub to: Vec<String>,
+    pub recipients: Vec<String>,
     pub read: bool,
     pub has_attachments: bool,
 }
@@ -72,7 +71,7 @@ impl From<EmailRecord> for EmailListRecord {
             date: record.date,
             created_at: record.created_at,
             from: record.from,
-            to: record.to,
+            recipients: record.recipients,
             read: record.read,
             has_attachments: !record.attachments.is_empty(),
         }
@@ -171,7 +170,6 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
             .as_ref()
             .map(|h| serde_json::to_string(h).unwrap())),
         from: Set(message.from.clone()),
-        to: Set(serde_json::to_string(&message.to).unwrap()),
         size: Set(message.size as i32),
         raw_data: Set(message.data.clone()),
         body_text: Set(Some(message.body_text.clone())),
@@ -183,7 +181,7 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
     };
     Insert::one(email_model).exec(&txn).await?;
 
-    for recipient_email in &message.recipients {
+    for recipient_email in &message.to {
         if recipient_email.trim().is_empty() {
             continue;
         }
@@ -246,7 +244,6 @@ fn apply_search_filter(
                 .add(emails::Column::Subject.like(&search_pattern))
                 .add(emails::Column::MessageId.like(&search_pattern))
                 .add(emails::Column::From.like(&search_pattern))
-                .add(emails::Column::To.like(&search_pattern))
                 .add(emails::Column::BodyText.like(&search_pattern))
                 .add(emails::Column::BodyHtml.like(&search_pattern)),
         )
@@ -258,7 +255,7 @@ fn apply_search_filter(
 fn convert_emails_to_list_records(email_models: Vec<emails::Model>) -> Vec<EmailListRecord> {
     email_models
         .into_iter()
-        .map(email_model_to_list_record)
+        .map(|email| email_model_to_list_record(email, Vec::new()))
         .collect()
 }
 
@@ -267,9 +264,6 @@ fn email_model_to_record(
     attachments: Vec<email_attachments::Model>,
     recipients: Vec<String>,
 ) -> EmailRecord {
-    let to: Vec<String> =
-        serde_json::from_str(&email.to).unwrap_or_else(|_| vec![email.from.clone()]);
-
     EmailRecord {
         id: email.id,
         message_id: email.message_id,
@@ -281,7 +275,6 @@ fn email_model_to_record(
             .and_then(|h| serde_json::from_str(h).ok()),
         created_at: email.created_at,
         from: email.from,
-        to,
         recipients,
         size: email.size as u64,
         body_text: email.body_text.unwrap_or_default(),
@@ -305,17 +298,14 @@ fn email_model_to_record(
     }
 }
 
-fn email_model_to_list_record(email: emails::Model) -> EmailListRecord {
-    let to: Vec<String> =
-        serde_json::from_str(&email.to).unwrap_or_else(|_| vec![email.from.clone()]);
-
+fn email_model_to_list_record(email: emails::Model, recipients: Vec<String>) -> EmailListRecord {
     EmailListRecord {
         id: email.id,
         subject: email.subject,
         date: email.date,
         created_at: email.created_at,
         from: email.from,
-        to,
+        recipients,
         read: email.read,
         has_attachments: email.has_attachments,
     }

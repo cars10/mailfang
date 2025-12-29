@@ -17,7 +17,6 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Emails::Date).date_time().null())
                     .col(ColumnDef::new(Emails::Headers).text().null())
                     .col(ColumnDef::new(Emails::From).string().not_null())
-                    .col(ColumnDef::new(Emails::To).string().not_null())
                     .col(ColumnDef::new(Emails::Size).integer().not_null())
                     .col(ColumnDef::new(Emails::RawData).text().not_null())
                     .col(ColumnDef::new(Emails::BodyText).text().null())
@@ -174,7 +173,6 @@ enum Emails {
     Date,
     Headers,
     From,
-    To,
     Size,
     RawData,
     BodyText,

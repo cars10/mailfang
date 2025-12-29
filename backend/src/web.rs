@@ -209,7 +209,7 @@ async fn get_email(
             date: updated_email.date,
             created_at: updated_email.created_at,
             from: updated_email.from.clone(),
-            to: updated_email.to.clone(),
+            recipients: updated_email.recipients.clone(),
             read: updated_email.read,
             has_attachments: !updated_email.attachments.is_empty(),
         };
