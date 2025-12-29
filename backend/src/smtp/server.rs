@@ -7,7 +7,6 @@ use smtp_proto::Request;
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::thread;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
 use tracing::{error, info};
@@ -67,14 +66,10 @@ impl SmtpServer {
     /// Defaults to max_connections = num_cpus / 2
     /// If auth credentials are not set, all authentication attempts will be accepted
     pub fn new(addr: SocketAddr) -> Self {
-        let default_max = thread::available_parallelism()
-            .map(|n| n.get() / 2)
-            .unwrap_or(2)
-            .max(1);
         Self {
             addr,
             on_receive: None,
-            max_connections: default_max,
+            max_connections: 0,
             auth_username: None,
             auth_password: None,
         }

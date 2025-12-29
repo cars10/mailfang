@@ -143,7 +143,7 @@ struct EmailListResponse {
     pagination: PaginationInfo,
 }
 
-pub async fn run_web_server(
+pub async fn run(
     addr: SocketAddr,
     pool: DbPool,
     broadcast: BroadcastSender,

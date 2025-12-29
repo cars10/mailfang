@@ -46,7 +46,7 @@ RUN addgroup -g 1000 appuser && \
 
 WORKDIR /app
 
-COPY --from=backend-builder /app/backend/target/release/mailfang-backend /app/mailfang-backend
+COPY --from=backend-builder /app/backend/target/release/mailfang /app/mailfang
 
 RUN mkdir -p /data && \
     touch /data/mailfang.db && \
@@ -63,4 +63,4 @@ ENV SMTP_PORT=2525
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["/app/mailfang-backend"]
+CMD ["/app/mailfang"]

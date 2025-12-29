@@ -1,7 +1,7 @@
 use clap::Parser;
 use mailfang::{config, db, logging, migration, smtp, web};
 use sea_orm_migration::prelude::*;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 use tokio::sync::broadcast;
@@ -11,9 +11,7 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     logging::init();
     let config = config::Config::parse();
-
-    let smtp_addr = config.smtp_socket_addr();
-    let web_addr = config.web_socket_addr();
+    config.print();
 
     ensure_sqlite_db_file(&config.database_url)?;
     let db = Arc::new(
@@ -69,7 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     };
 
-    let smtp_server = smtp::SmtpServer::new(smtp_addr)
+    let smtp_server = smtp::SmtpServer::new(config.smtp_socket_addr())
+        .max_connections(config.smtp_max_connections)
         .auth(config.smtp_username.clone(), config.smtp_password.clone())
         .on_receive(save_callback);
 
@@ -79,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         smtp_result = smtp_server.run() => {
             smtp_result?;
         }
-        web_result = web::run_web_server(web_addr, db, broadcast_tx, static_dir.as_deref()) => {
+        web_result = web::run(config.web_socket_addr(), db, broadcast_tx, static_dir.as_deref()) => {
             web_result?;
         }
     }
@@ -89,34 +88,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn ensure_sqlite_db_file(database_url: &str) -> io::Result<()> {
     if !database_url.starts_with("sqlite:") {
-        return Ok(());
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Database URL must start with 'sqlite:'",
+        ));
     }
 
     if database_url.contains(":memory:") {
         return Ok(());
     }
 
-    // Handle both sqlite:// and sqlite:/ formats
-    let path_part = if database_url.starts_with("sqlite://") {
-        database_url.trim_start_matches("sqlite://")
-    } else if database_url.starts_with("sqlite:/") {
-        database_url.trim_start_matches("sqlite:/")
-    } else {
-        database_url.trim_start_matches("sqlite:")
-    };
+    let path_str = database_url
+        .trim_start_matches("sqlite://")
+        .trim_start_matches("sqlite:")
+        .split('?')
+        .next()
+        .unwrap_or("");
 
-    let path: PathBuf = if path_part.starts_with('/') {
-        PathBuf::from(path_part)
-    } else {
-        std::env::current_dir()?.join(path_part)
-    };
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+    if path_str.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SQLite database URL is missing a file path",
+        ));
     }
 
+    let path = Path::new(path_str);
+
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+
+    // create the file if missing
     if !path.exists() {
-        fs::File::create(path)?;
+        fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
     }
 
     Ok(())
