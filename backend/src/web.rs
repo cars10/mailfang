@@ -9,21 +9,21 @@ use axum::{
     Router,
     extract::{Path, Query, State, ws::WebSocketUpgrade},
     http::{HeaderMap, HeaderValue, StatusCode},
-    response::{Html, IntoResponse, Json, Response},
+    response::{IntoResponse, Json, Response},
     routing::get,
 };
 #[cfg(feature = "embed-frontend")]
 use static_serve::embed_assets;
 #[cfg(feature = "embed-frontend")]
-embed_assets!("../frontend/dist");
+embed_assets!("../frontend/dist", compress = true);
+#[cfg(feature = "embed-frontend")]
+use axum::response::Html;
 use futures_util::{SinkExt, StreamExt};
 use sea_orm::EntityTrait;
 use serde::Deserialize;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::time::Instant;
 use tokio::sync::broadcast;
-use tower_http::services::ServeDir;
 use tracing::{error, info};
 
 #[derive(Debug)]
@@ -87,20 +87,7 @@ struct AppState {
     broadcast: BroadcastSender,
 }
 
-fn attach_frontend_routes(app: Router<AppState>, static_dir: Option<&str>) -> Router<AppState> {
-    if let Some(static_dir) = static_dir {
-        let static_path = PathBuf::from(static_dir);
-        let assets_path = static_path.join("assets");
-        let index_path = static_path.join("index.html");
-
-        return app
-            .nest_service("/assets", ServeDir::new(assets_path))
-            .fallback(get(move |state: State<AppState>| {
-                let index_path = index_path.clone();
-                async move { serve_index_with_path(state, index_path).await }
-            }));
-    }
-
+fn attach_frontend_routes(app: Router<AppState>) -> Router<AppState> {
     #[cfg(feature = "embed-frontend")]
     {
         // Merge static router for assets, then add fallback to serve index.html for SPA routing
@@ -148,7 +135,6 @@ pub async fn run(
     addr: SocketAddr,
     pool: DbPool,
     broadcast: BroadcastSender,
-    static_dir: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState { pool, broadcast };
 
@@ -167,7 +153,7 @@ pub async fn run(
         .route("/ws", get(websocket_handler))
         .layer(axum::middleware::from_fn(log_http_request));
 
-    let app = attach_frontend_routes(app, static_dir).with_state(app_state);
+    let app = attach_frontend_routes(app).with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(component = "web", "Web server listening on {}", addr);
@@ -242,17 +228,8 @@ async fn get_email(
     }
 }
 
-async fn serve_index_with_path(
-    State(_state): State<AppState>,
-    index_path: PathBuf,
-) -> Result<Html<String>, WebError> {
-    let content = tokio::fs::read_to_string(&index_path).await?;
-    Ok(Html(content))
-}
-
 #[cfg(feature = "embed-frontend")]
 async fn serve_embedded_index() -> Result<Html<String>, WebError> {
-    // Include index.html at compile time
     const INDEX_HTML: &str = include_str!("../../frontend/dist/index.html");
     Ok(Html(INDEX_HTML.to_string()))
 }

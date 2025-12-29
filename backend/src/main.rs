@@ -36,13 +36,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .auth(config.smtp_username.clone(), config.smtp_password.clone())
         .on_receive(smtp_on_receive);
 
-    let static_dir = std::env::var("STATIC_DIR").ok();
-
     tokio::select! {
         smtp_result = smtp_server.run() => {
             smtp_result?;
         }
-        web_result = web::run(config.web_socket_addr(), db, broadcast_tx, static_dir.as_deref()) => {
+        web_result = web::run(config.web_socket_addr(), db, broadcast_tx) => {
             web_result?;
         }
     }
