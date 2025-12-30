@@ -435,7 +435,7 @@ pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbEr
     let rows: Vec<RecipientStatsRow> = recipients::Entity::find()
         .inner_join(emails::Entity)
         .select_only()
-        .column(recipients::Column::Email)
+        .column_as(recipients::Column::Email, "recipient")
         .column_as(emails::Column::Id.count(), "count")
         .group_by(recipients::Column::Email)
         .order_by_asc(recipients::Column::Email)
