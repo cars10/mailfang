@@ -233,25 +233,6 @@ pub async fn save_email(db: &DatabaseConnection, message: &Email) -> Result<Stri
     Ok(message.id.to_string())
 }
 
-fn apply_search_filter(
-    query: sea_orm::Select<emails::Entity>,
-    search: Option<&str>,
-) -> sea_orm::Select<emails::Entity> {
-    if let Some(search_term) = search {
-        let search_pattern = format!("%{}%", search_term);
-        query.filter(
-            sea_orm::Condition::any()
-                .add(emails::Column::Subject.like(&search_pattern))
-                .add(emails::Column::MessageId.like(&search_pattern))
-                .add(emails::Column::From.like(&search_pattern))
-                .add(emails::Column::BodyText.like(&search_pattern))
-                .add(emails::Column::BodyHtml.like(&search_pattern)),
-        )
-    } else {
-        query
-    }
-}
-
 fn convert_emails_to_list_records(email_models: Vec<emails::ModelEx>) -> Vec<EmailListRecord> {
     email_models
         .into_iter()
@@ -444,21 +425,11 @@ struct RecipientStatsRow {
 pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbErr> {
     let inbox_count = emails::Entity::find().count(db).await?;
 
-    use sea_orm::JoinType;
-
-    // Aggregate counts per recipient using GROUP BY in the database.
-    // Start from the join table to avoid ambiguous recipients aliases.
-    let rows: Vec<RecipientStatsRow> = email_recipients::Entity::find()
-        .join(
-            JoinType::InnerJoin,
-            email_recipients::Entity::belongs_to(recipients::Entity)
-                .from(email_recipients::Column::RecipientId)
-                .to(recipients::Column::Id)
-                .into(),
-        )
+    let rows: Vec<RecipientStatsRow> = recipients::Entity::find()
+        .inner_join(emails::Entity)
         .select_only()
-        .column_as(recipients::Column::Email, "recipient")
-        .column_as(email_recipients::Column::EmailId.count(), "count")
+        .column(recipients::Column::Email)
+        .column_as(emails::Column::Id.count(), "count")
         .group_by(recipients::Column::Email)
         .order_by_asc(recipients::Column::Email)
         .into_model::<RecipientStatsRow>()
@@ -484,46 +455,36 @@ pub async fn get_emails_by_recipient(
     recipient_email: &str,
     query_params: &ListQuery,
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    // Find the recipient row first. If it doesn't exist, return empty results.
-    if let Some(recipient) = recipients::Entity::find()
+    let subquery = email_recipients::Entity::find()
+        .inner_join(recipients::Entity)
         .filter(recipients::Column::Email.eq(recipient_email))
-        .one(db)
-        .await?
-    {
-        // Use a subquery on the join table to avoid ambiguous aliases when joining.
-        let subquery = email_recipients::Entity::find()
-            .select_only()
-            .column(email_recipients::Column::EmailId)
-            .filter(email_recipients::Column::RecipientId.eq(recipient.id))
-            .into_query();
+        .select_only()
+        .column(email_recipients::Column::EmailId)
+        .into_query();
 
-        // Use Entity Loader to load emails with recipients - handles pagination on the database
-        let mut loader = emails::Entity::load().filter(emails::Column::Id.in_subquery(subquery));
+    let mut loader = emails::Entity::load().filter(emails::Column::Id.in_subquery(subquery));
 
-        if let Some(search_term) = query_params.search.as_deref() {
-            let search_pattern = format!("%{}%", search_term);
-            loader = loader.filter(
-                sea_orm::Condition::any()
-                    .add(emails::Column::Subject.like(&search_pattern))
-                    .add(emails::Column::MessageId.like(&search_pattern))
-                    .add(emails::Column::From.like(&search_pattern))
-                    .add(emails::Column::BodyText.like(&search_pattern))
-                    .add(emails::Column::BodyHtml.like(&search_pattern)),
-            );
-        }
-
-        let paginator = loader
-            .order_by_desc(emails::Column::CreatedAt)
-            .with(recipients::Entity)
-            .paginate(db, query_params.per_page);
-
-        let num_pages = paginator.num_pages().await?;
-        let email_models = paginator.fetch_page(query_params.page - 1).await?;
-
-        let records = convert_emails_to_list_records(email_models);
-
-        Ok((records, num_pages))
-    } else {
-        Ok((Vec::new(), 0))
+    if let Some(search_term) = query_params.search.as_deref() {
+        let search_pattern = format!("%{}%", search_term);
+        loader = loader.filter(
+            sea_orm::Condition::any()
+                .add(emails::Column::Subject.like(&search_pattern))
+                .add(emails::Column::MessageId.like(&search_pattern))
+                .add(emails::Column::From.like(&search_pattern))
+                .add(emails::Column::BodyText.like(&search_pattern))
+                .add(emails::Column::BodyHtml.like(&search_pattern)),
+        );
     }
+
+    let paginator = loader
+        .order_by_desc(emails::Column::CreatedAt)
+        .with(recipients::Entity)
+        .paginate(db, query_params.per_page);
+
+    let num_pages = paginator.num_pages().await?;
+    let email_models = paginator.fetch_page(query_params.page - 1).await?;
+
+    let records = convert_emails_to_list_records(email_models);
+
+    Ok((records, num_pages))
 }
