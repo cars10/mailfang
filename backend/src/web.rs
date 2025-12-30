@@ -2,9 +2,8 @@ use crate::csp::inject_csp_meta_tag;
 use crate::db::{
     DbPool, ListParams, ListQuery, delete_all_emails, delete_email_by_id, get_all_emails,
     get_attachment_by_id, get_email_by_id, get_email_stats, get_emails_by_recipient,
-    get_raw_data_by_id, mark_email_read,
+    get_raw_data_by_id, get_rendered_data_by_id, mark_email_read,
 };
-use crate::entities::emails;
 use axum::{
     Router,
     extract::{Path, Query, State, ws::WebSocketUpgrade},
@@ -19,7 +18,7 @@ embed_assets!("../frontend/dist", compress = true);
 #[cfg(feature = "embed-frontend")]
 use axum::response::Html;
 use futures_util::{SinkExt, StreamExt};
-use sea_orm::EntityTrait;
+use r2d2::Error as R2d2Error;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -28,7 +27,7 @@ use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum WebError {
-    Database(sea_orm::DbErr),
+    Database(String),
     NotFound,
     Io(std::io::Error),
 }
@@ -36,9 +35,9 @@ pub enum WebError {
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            WebError::Database(_) => (
+            WebError::Database(err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Database error".to_string(),
+                format!("Database error: {}", err),
             ),
             WebError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
             WebError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "IO error".to_string()),
@@ -47,16 +46,22 @@ impl IntoResponse for WebError {
     }
 }
 
-impl From<sea_orm::DbErr> for WebError {
-    fn from(err: sea_orm::DbErr) -> Self {
-        error!(component = "web", error = ?err, "Database error");
-        WebError::Database(err)
+impl From<Box<dyn std::error::Error + Send + Sync>> for WebError {
+    fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        error!(component = "web", error = %err, "Internal error");
+        WebError::Database(err.to_string())
     }
 }
 
 impl From<std::io::Error> for WebError {
     fn from(err: std::io::Error) -> Self {
         WebError::Io(err)
+    }
+}
+
+impl From<R2d2Error> for WebError {
+    fn from(err: R2d2Error) -> Self {
+        WebError::Database(err.to_string())
     }
 }
 
@@ -166,8 +171,12 @@ async fn list_emails(
     Query(params): Query<ListParams>,
 ) -> Result<Json<EmailListResponse>, WebError> {
     let query: ListQuery = params.into();
-    let (emails, total_pages) = get_all_emails(&state.pool, &query).await?;
-    let counts = get_email_stats(&state.pool).await?;
+
+    let mut conn = state.pool.get()?;
+    let (emails, total_pages) = get_all_emails(&mut conn, &query)?;
+
+    let counts = get_email_stats(&mut conn)?;
+
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -181,8 +190,12 @@ async fn list_emails_by_recipient_endpoint(
     Query(params): Query<ListParams>,
 ) -> Result<Json<EmailListResponse>, WebError> {
     let query: ListQuery = params.into();
-    let (emails, total_pages) = get_emails_by_recipient(&state.pool, &recipient, &query).await?;
-    let counts = get_email_stats(&state.pool).await?;
+
+    let mut conn = state.pool.get()?;
+    let (emails, total_pages) = get_emails_by_recipient(&mut conn, &recipient, &query)?;
+
+    let counts = get_email_stats(&mut conn)?;
+
     Ok(Json(EmailListResponse {
         emails,
         counts,
@@ -194,25 +207,15 @@ async fn get_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<crate::db::EmailRecord>, WebError> {
-    let email = get_email_by_id(&state.pool, &id)
-        .await?
-        .ok_or(WebError::NotFound)?;
+    let mut conn = state.pool.get()?;
+    let email = get_email_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     if !email.read {
-        mark_email_read(&state.pool, &id, true).await?;
-        let updated_email = get_email_by_id(&state.pool, &id)
-            .await?
-            .ok_or(WebError::NotFound)?;
-        let email_list_record = crate::db::EmailListRecord {
-            id: updated_email.id.clone(),
-            subject: updated_email.subject.clone(),
-            date: updated_email.date,
-            created_at: updated_email.created_at,
-            from: updated_email.from.clone(),
-            recipients: updated_email.recipients.clone(),
-            read: updated_email.read,
-            has_attachments: !updated_email.attachments.is_empty(),
-        };
+        mark_email_read(&mut conn, &id, true)?;
+
+        let updated_email = get_email_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+
+        let email_list_record: crate::db::EmailListRecord = updated_email.clone().into();
         state
             .broadcast
             .send(WebSocketMessage {
@@ -238,7 +241,9 @@ async fn delete_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, WebError> {
-    let rows_affected = delete_email_by_id(&state.pool, &id).await?;
+    let mut conn = state.pool.get()?;
+    let rows_affected = delete_email_by_id(&mut conn, &id)?;
+
     if rows_affected > 0 {
         state
             .broadcast
@@ -256,7 +261,8 @@ async fn delete_email(
 }
 
 async fn delete_all(State(state): State<AppState>) -> Result<StatusCode, WebError> {
-    delete_all_emails(&state.pool).await?;
+    let mut conn = state.pool.get()?;
+    delete_all_emails(&mut conn)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -264,9 +270,8 @@ async fn get_raw_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
-    let raw_data = get_raw_data_by_id(&state.pool, &id)
-        .await?
-        .ok_or(WebError::NotFound)?;
+    let mut conn = state.pool.get()?;
+    let raw_data = get_raw_data_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -289,12 +294,8 @@ async fn get_rendered_email(
     Path(id): Path<String>,
     Query(params): Query<RenderedQueryParams>,
 ) -> Result<Response, WebError> {
-    let email_model = emails::Entity::find_by_id(id.clone())
-        .one(&*state.pool)
-        .await?
-        .ok_or(WebError::NotFound)?;
-
-    let rendered_html = email_model.rendered_body_html.ok_or(WebError::NotFound)?;
+    let mut conn = state.pool.get()?;
+    let rendered_html = get_rendered_data_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     // Default to blocking remote content unless explicitly allowed
     let allow_remote_content = params.allow_remote_content.unwrap_or(false);
@@ -317,9 +318,8 @@ async fn get_attachment(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
-    let attachment = get_attachment_by_id(&state.pool, &id)
-        .await?
-        .ok_or(WebError::NotFound)?;
+    let mut conn = state.pool.get()?;
+    let attachment = get_attachment_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -366,7 +366,8 @@ async fn log_http_request(
 async fn get_email_stats_endpoint(
     State(state): State<AppState>,
 ) -> Result<Json<crate::db::EmailStats>, WebError> {
-    let counts = get_email_stats(&state.pool).await?;
+    let mut conn = state.pool.get()?;
+    let counts = get_email_stats(&mut conn)?;
     Ok(Json(counts))
 }
 

@@ -102,7 +102,7 @@ pub fn init() {
     // This suppresses the long query logs while still showing errors
     let filter = base_filter
         .add_directive("sqlx=warn".parse().unwrap())
-        .add_directive("sea_orm=warn".parse().unwrap());
+        .add_directive("diesel=warn".parse().unwrap());
 
     tracing_subscriber::registry()
         .with(

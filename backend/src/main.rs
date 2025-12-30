@@ -1,11 +1,15 @@
 use clap::Parser;
-use mailfang::{config, db, logging, migration, smtp, web};
-use sea_orm_migration::prelude::*;
+use diesel::prelude::*;
+use diesel::r2d2::{self, ConnectionManager};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use mailfang::{config, db, logging, smtp, web};
 use std::path::Path;
 use std::sync::Arc;
 use std::{fs, io};
 use tokio::sync::broadcast;
 use tracing::{error, info};
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,24 +58,29 @@ fn setup_config() -> config::Config {
     config
 }
 
-async fn setup_database(
-    config: &config::Config,
-) -> Result<Arc<sea_orm::DatabaseConnection>, io::Error> {
+async fn setup_database(config: &config::Config) -> Result<db::DbPool, io::Error> {
     create_sqlite_db_file(&config.database_url)?;
 
-    let db = Arc::new(
-        sea_orm::Database::connect(&config.database_url)
-            .await
-            .expect("Failed to connect to database"),
-    );
+    let url = config
+        .database_url
+        .trim_start_matches("sqlite://")
+        .trim_start_matches("sqlite:");
+    let manager = ConnectionManager::<SqliteConnection>::new(url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-    info!(component = "main", "Running database migrations...");
-    migration::Migrator::up(&*db, None)
-        .await
+    info!(component = "main", "Database connected");
+
+    // Run database migrations
+    let mut conn = pool
+        .get()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    conn.run_pending_migrations(MIGRATIONS)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     info!(component = "main", "Database migrations completed");
 
-    Ok(db)
+    Ok(Arc::new(pool))
 }
 
 fn create_sqlite_db_file(database_url: &str) -> io::Result<()> {
@@ -120,16 +129,35 @@ fn create_sqlite_db_file(database_url: &str) -> io::Result<()> {
 }
 
 fn handle_new_email(
-    db: Arc<sea_orm::DatabaseConnection>,
+    db: db::DbPool,
     broadcast: broadcast::Sender<web::WebSocketMessage>,
     message: smtp::Email,
 ) {
     tokio::spawn(async move {
-        match db::save_email(&db, &message).await {
-            Ok(email_id) => {
-                let email_result = db::get_email_by_id(&db, &email_id).await;
+        let db_clone = db.clone();
+        let message_clone = message.clone();
+        let email_id_result = tokio::task::spawn_blocking(move || {
+            let mut conn = db_clone.get().map_err(|e| {
+                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    as Box<dyn std::error::Error + Send + Sync>
+            })?;
+            db::save_email(&mut conn, &message_clone)
+        })
+        .await;
 
-                if let Ok(Some(email_record)) = email_result {
+        match email_id_result {
+            Ok(Ok(email_id)) => {
+                let db_clone = db.clone();
+                let email_result = tokio::task::spawn_blocking(move || {
+                    let mut conn = db_clone.get().map_err(|e| {
+                        Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                            as Box<dyn std::error::Error + Send + Sync>
+                    })?;
+                    db::get_email_by_id(&mut conn, &email_id)
+                })
+                .await;
+
+                if let Ok(Ok(Some(email_record))) = email_result {
                     let recipients = email_record.recipients.clone();
                     let email_list_record: db::EmailListRecord = email_record.into();
                     broadcast
@@ -142,11 +170,14 @@ fn handle_new_email(
                         .ok();
                 }
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 error!(
                     component = "smtp",
                     "Failed to save email to database: {}", e
                 );
+            }
+            Err(e) => {
+                error!(component = "smtp", "Failed to spawn blocking task: {}", e);
             }
         }
     });

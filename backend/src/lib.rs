@@ -1,8 +1,8 @@
 pub mod config;
 pub mod csp;
 pub mod db;
-pub mod entities;
 pub mod logging;
-pub mod migration;
+pub mod models;
+pub mod schema;
 pub mod smtp;
 pub mod web;

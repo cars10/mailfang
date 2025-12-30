@@ -27,12 +27,13 @@ services:
       - ./backend/src:/app/src
       - ./backend/Cargo.toml:/app/Cargo.toml
       - ./backend/Cargo.lock:/app/Cargo.lock
+      - ./backend/migrations:/app/migrations
       - backend_target:/app/target
     environment:
       - DATABASE_URL=sqlite:///app/mailfang.db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
+      interval: 20s
       timeout: 5s
       retries: 20
       start_period: 10s
