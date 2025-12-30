@@ -257,13 +257,11 @@ fn email_model_to_list_record(email: emails::Model, recipients: Vec<String>) -> 
     }
 }
 
-pub async fn get_all_emails(
-    db: &DatabaseConnection,
-    query_params: &ListQuery,
-) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let mut loader = emails::Entity::load();
-
-    if let Some(search_term) = query_params.search.as_deref() {
+fn apply_search_filter_to_loader(
+    mut loader: emails::EntityLoader,
+    search: Option<&str>,
+) -> emails::EntityLoader {
+    if let Some(search_term) = search {
         let search_pattern = format!("%{}%", search_term);
         loader = loader.filter(
             sea_orm::Condition::any()
@@ -274,6 +272,15 @@ pub async fn get_all_emails(
                 .add(emails::Column::BodyHtml.like(&search_pattern)),
         );
     }
+    loader
+}
+
+pub async fn get_all_emails(
+    db: &DatabaseConnection,
+    query_params: &ListQuery,
+) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
+    let loader = emails::Entity::load();
+    let loader = apply_search_filter_to_loader(loader, query_params.search.as_deref());
 
     let paginator = loader
         .order_by_desc(emails::Column::CreatedAt)
@@ -462,19 +469,8 @@ pub async fn get_emails_by_recipient(
         .column(email_recipients::Column::EmailId)
         .into_query();
 
-    let mut loader = emails::Entity::load().filter(emails::Column::Id.in_subquery(subquery));
-
-    if let Some(search_term) = query_params.search.as_deref() {
-        let search_pattern = format!("%{}%", search_term);
-        loader = loader.filter(
-            sea_orm::Condition::any()
-                .add(emails::Column::Subject.like(&search_pattern))
-                .add(emails::Column::MessageId.like(&search_pattern))
-                .add(emails::Column::From.like(&search_pattern))
-                .add(emails::Column::BodyText.like(&search_pattern))
-                .add(emails::Column::BodyHtml.like(&search_pattern)),
-        );
-    }
+    let loader = emails::Entity::load().filter(emails::Column::Id.in_subquery(subquery));
+    let loader = apply_search_filter_to_loader(loader, query_params.search.as_deref());
 
     let paginator = loader
         .order_by_desc(emails::Column::CreatedAt)
