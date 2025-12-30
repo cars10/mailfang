@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[sea_orm::model]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "emails")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -20,18 +21,10 @@ pub struct Model {
     pub read: bool,
     pub has_attachments: bool,
     pub created_at: DateTime<Utc>,
-}
-
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(has_many = "super::email_attachments::Entity")]
-    EmailAttachments,
-}
-
-impl Related<super::email_attachments::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::EmailAttachments.def()
-    }
+    #[sea_orm(has_many)]
+    pub attachments: HasMany<super::email_attachments::Entity>,
+    #[sea_orm(has_many, via = "email_recipients", from = "id", to = "email_id")]
+    pub recipients: HasMany<super::recipients::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

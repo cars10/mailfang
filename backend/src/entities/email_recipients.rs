@@ -1,41 +1,18 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
+#[sea_orm::model]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "email_recipients")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub email_id: String,
     #[sea_orm(primary_key)]
     pub recipient_id: String,
-}
-
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::emails::Entity",
-        from = "Column::EmailId",
-        to = "super::emails::Column::Id"
-    )]
-    Email,
-    #[sea_orm(
-        belongs_to = "super::recipients::Entity",
-        from = "Column::RecipientId",
-        to = "super::recipients::Column::Id"
-    )]
-    Recipient,
-}
-
-impl Related<super::emails::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Email.def()
-    }
-}
-
-impl Related<super::recipients::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Recipient.def()
-    }
+    #[sea_orm(belongs_to, from = "email_id", to = "id")]
+    pub email: HasOne<super::emails::Entity>,
+    #[sea_orm(belongs_to, from = "recipient_id", to = "id")]
+    pub recipient: HasOne<super::recipients::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

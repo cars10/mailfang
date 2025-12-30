@@ -2,8 +2,8 @@ use crate::entities::{email_attachments, email_recipients, emails, recipients};
 use crate::smtp::Email;
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, FromQueryResult, Insert,
-    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityLoaderTrait, EntityTrait,
+    FromQueryResult, Insert, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, QueryTrait, Set,
     TransactionTrait,
 };
 use std::sync::Arc;
@@ -45,8 +45,8 @@ pub struct EmailRecord {
     pub from: String,
     pub recipients: Vec<String>,
     pub size: u64,
-    pub body_text: String,
-    pub body_html: String,
+    pub body_text: Option<String>,
+    pub body_html: Option<String>,
     pub read: bool,
     pub attachments: Vec<EmailAttachmentRecord>,
 }
@@ -252,50 +252,15 @@ fn apply_search_filter(
     }
 }
 
-fn convert_emails_to_list_records(email_models: Vec<emails::Model>) -> Vec<EmailListRecord> {
+fn convert_emails_to_list_records(email_models: Vec<emails::ModelEx>) -> Vec<EmailListRecord> {
     email_models
         .into_iter()
-        .map(|email| email_model_to_list_record(email, Vec::new()))
+        .map(|email| {
+            let recipient_emails: Vec<String> =
+                email.recipients.iter().map(|r| r.email.clone()).collect();
+            email_model_to_list_record(email.into(), recipient_emails)
+        })
         .collect()
-}
-
-fn email_model_to_record(
-    email: emails::Model,
-    attachments: Vec<email_attachments::Model>,
-    recipients: Vec<String>,
-) -> EmailRecord {
-    EmailRecord {
-        id: email.id,
-        message_id: email.message_id,
-        subject: email.subject,
-        date: email.date,
-        headers: email
-            .headers
-            .as_ref()
-            .and_then(|h| serde_json::from_str(h).ok()),
-        created_at: email.created_at,
-        from: email.from,
-        recipients,
-        size: email.size as u64,
-        body_text: email.body_text.unwrap_or_default(),
-        body_html: email.body_html.unwrap_or_default(),
-        read: email.read,
-        attachments: attachments
-            .into_iter()
-            .map(|a| EmailAttachmentRecord {
-                id: a.id,
-                filename: a.filename,
-                mime_type: a.mime_type,
-                size: a.size as usize,
-                content_id: a.content_id,
-                headers: a
-                    .headers
-                    .as_ref()
-                    .and_then(|h| serde_json::from_str(h).ok()),
-                created_at: a.created_at,
-            })
-            .collect(),
-    }
 }
 
 fn email_model_to_list_record(email: emails::Model, recipients: Vec<String>) -> EmailListRecord {
@@ -315,12 +280,28 @@ pub async fn get_all_emails(
     db: &DatabaseConnection,
     query_params: &ListQuery,
 ) -> Result<(Vec<EmailListRecord>, u64), DbErr> {
-    let query = emails::Entity::find();
-    let query = apply_search_filter(query, query_params.search.as_deref());
-    let query = query.order_by_desc(emails::Column::CreatedAt);
-    let paginator = query.paginate(db, query_params.per_page);
+    let mut loader = emails::Entity::load();
+
+    if let Some(search_term) = query_params.search.as_deref() {
+        let search_pattern = format!("%{}%", search_term);
+        loader = loader.filter(
+            sea_orm::Condition::any()
+                .add(emails::Column::Subject.like(&search_pattern))
+                .add(emails::Column::MessageId.like(&search_pattern))
+                .add(emails::Column::From.like(&search_pattern))
+                .add(emails::Column::BodyText.like(&search_pattern))
+                .add(emails::Column::BodyHtml.like(&search_pattern)),
+        );
+    }
+
+    let paginator = loader
+        .order_by_desc(emails::Column::CreatedAt)
+        .with(recipients::Entity)
+        .paginate(db, query_params.per_page);
+
     let num_pages = paginator.num_pages().await?;
     let email_models = paginator.fetch_page(query_params.page - 1).await?;
+
     let records = convert_emails_to_list_records(email_models);
     Ok((records, num_pages))
 }
@@ -329,33 +310,54 @@ pub async fn get_email_by_id(
     db: &DatabaseConnection,
     email_id: &str,
 ) -> Result<Option<EmailRecord>, DbErr> {
-    let email = emails::Entity::find_by_id(email_id.to_string())
+    let email = emails::Entity::load()
+        .filter(emails::Column::Id.eq(email_id))
+        .with(email_attachments::Entity)
+        .with(recipients::Entity)
         .one(db)
         .await?;
 
     if let Some(email) = email {
-        let attachments = email_attachments::Entity::find()
-            .filter(email_attachments::Column::EmailId.eq(&email.id))
-            .all(db)
-            .await?;
+        let mut attachments = Vec::new();
+        for att in email.attachments.iter() {
+            attachments.push(EmailAttachmentRecord {
+                id: att.id.clone(),
+                filename: att.filename.clone(),
+                mime_type: att.mime_type.clone(),
+                size: att.size as usize,
+                content_id: att.content_id.clone(),
+                headers: att
+                    .headers
+                    .as_ref()
+                    .and_then(|h| serde_json::from_str(h).ok()),
+                created_at: att.created_at,
+            });
+        }
 
-        // Load recipients for this email from the join table.
-        let recipient_rows = email_recipients::Entity::find()
-            .filter(email_recipients::Column::EmailId.eq(&email.id))
-            .find_also_related(recipients::Entity)
-            .all(db)
-            .await?;
-
-        let recipients_vec: Vec<String> = recipient_rows
-            .into_iter()
-            .filter_map(|(_join, recipient_opt)| recipient_opt.map(|r| r.email))
+        let recipients: Vec<String> = email
+            .recipients
+            .iter()
+            .map(|r| r.email.to_string())
             .collect();
 
-        Ok(Some(email_model_to_record(
-            email,
+        Ok(Some(EmailRecord {
+            id: email.id,
+            message_id: email.message_id,
+            subject: email.subject,
+            date: email.date,
+            headers: email
+                .headers
+                .as_ref()
+                .and_then(|h| serde_json::from_str(h).ok()),
+            created_at: email.created_at,
+            from: email.from,
+            recipients,
+            size: email.size as u64,
+            body_text: email.body_text,
+            body_html: email.body_html,
+            read: email.read,
             attachments,
-            recipients_vec,
-        )))
+        }))
     } else {
         Ok(None)
     }
@@ -449,7 +451,10 @@ pub async fn get_email_stats(db: &DatabaseConnection) -> Result<EmailStats, DbEr
     let rows: Vec<RecipientStatsRow> = email_recipients::Entity::find()
         .join(
             JoinType::InnerJoin,
-            email_recipients::Relation::Recipient.def(),
+            email_recipients::Entity::belongs_to(recipients::Entity)
+                .from(email_recipients::Column::RecipientId)
+                .to(recipients::Column::Id)
+                .into(),
         )
         .select_only()
         .column_as(recipients::Column::Email, "recipient")
@@ -492,13 +497,29 @@ pub async fn get_emails_by_recipient(
             .filter(email_recipients::Column::RecipientId.eq(recipient.id))
             .into_query();
 
-        let query = emails::Entity::find().filter(emails::Column::Id.in_subquery(subquery));
+        // Use Entity Loader to load emails with recipients - handles pagination on the database
+        let mut loader = emails::Entity::load().filter(emails::Column::Id.in_subquery(subquery));
 
-        let query = apply_search_filter(query, query_params.search.as_deref());
-        let query = query.order_by_desc(emails::Column::CreatedAt);
-        let paginator = query.paginate(db, query_params.per_page);
+        if let Some(search_term) = query_params.search.as_deref() {
+            let search_pattern = format!("%{}%", search_term);
+            loader = loader.filter(
+                sea_orm::Condition::any()
+                    .add(emails::Column::Subject.like(&search_pattern))
+                    .add(emails::Column::MessageId.like(&search_pattern))
+                    .add(emails::Column::From.like(&search_pattern))
+                    .add(emails::Column::BodyText.like(&search_pattern))
+                    .add(emails::Column::BodyHtml.like(&search_pattern)),
+            );
+        }
+
+        let paginator = loader
+            .order_by_desc(emails::Column::CreatedAt)
+            .with(recipients::Entity)
+            .paginate(db, query_params.per_page);
+
         let num_pages = paginator.num_pages().await?;
         let email_models = paginator.fetch_page(query_params.page - 1).await?;
+
         let records = convert_emails_to_list_records(email_models);
 
         Ok((records, num_pages))

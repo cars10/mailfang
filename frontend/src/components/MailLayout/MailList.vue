@@ -59,8 +59,8 @@
               </div>
               <div class="flex flex-row gap-2">
                 <div class="text-gray-500">To:</div>
-                <div class="truncate" :title="mail.to.join(', ')">
-                  {{ mail.to.join(', ') }}
+                <div class="truncate" :title="mail.recipients.join(', ')">
+                  {{ mail.recipients.join(', ') }}
                 </div>
               </div>
             </div>

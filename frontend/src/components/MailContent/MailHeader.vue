@@ -40,14 +40,14 @@
             </div>
           </template>
 
-          <template v-if="email.to.length > 0">
+          <template v-if="email.recipients.length > 0">
             <div
               class="flex items-center text-gray-500 select-text text-nowrap"
             >
               To:
             </div>
             <div class="text-gray-600 select-text w-fit">
-              <CopyBadge :text="email.to.join(', ')" />
+              <CopyBadge :text="email.recipients.join(', ')" />
             </div>
           </template>
 

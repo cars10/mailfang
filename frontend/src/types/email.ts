@@ -16,11 +16,10 @@ export interface EmailRecord {
   headers: Record<string, string[]> | null
   created_at: string
   from: string // SMTP envelope sender (MAIL FROM)
-  to: string[] // SMTP envelope recipients (RCPT TO)
-  recipients: string[] // Same as `to` - all SMTP envelope recipients
+  recipients: string[] // SMTP envelope recipients (RCPT TO)
   size: number
-  body_text: string
-  body_html: string
+  body_text: string | null
+  body_html: string | null
   read: boolean
   attachments: EmailAttachment[]
 }
@@ -31,7 +30,7 @@ export interface EmailListRecord {
   date: string | null
   created_at: string
   from: string
-  to: string[]
+  recipients: string[]
   read: boolean
   has_attachments: boolean
 }
