@@ -61,8 +61,8 @@ export class ApiClient {
     )
   }
 
-  async getSidebar(): Promise<EmailCounts> {
-    return this.request<EmailCounts>('/api/emails/sidebar')
+  async getCounts(): Promise<EmailCounts> {
+    return this.request<EmailCounts>('/api/counts')
   }
 
   async getEmail(id: string): Promise<EmailRecord> {

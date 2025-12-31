@@ -34,7 +34,7 @@
 
   const fetchSidebar = async () => {
     try {
-      counts.value = await apiClient.getSidebar()
+      counts.value = await apiClient.getCounts()
     } catch (err) {
       console.error('Failed to fetch counts:', err)
     }

@@ -23,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db = setup_database(&config).await?;
 
-    let (broadcast_tx, _) = broadcast::channel::<web::WebSocketMessage>(100);
+    let (broadcast_tx, _) = broadcast::channel::<web::ws::WebSocketMessage>(100);
 
     let db_for_smtp = db.clone();
     let broadcast_for_smtp = broadcast_tx.clone();
@@ -130,7 +130,7 @@ fn create_sqlite_db_file(database_url: &str) -> io::Result<()> {
 
 fn handle_new_email(
     db: db::DbPool,
-    broadcast: broadcast::Sender<web::WebSocketMessage>,
+    broadcast: broadcast::Sender<web::ws::WebSocketMessage>,
     message: smtp::Email,
 ) {
     tokio::spawn(async move {
@@ -138,8 +138,10 @@ fn handle_new_email(
         let message_clone = message.clone();
         let email_id_result = tokio::task::spawn_blocking(move || {
             let mut conn = db_clone.get().map_err(|e| {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    as Box<dyn std::error::Error + Send + Sync>
+                diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UnableToSendCommand,
+                    Box::new(e.to_string()),
+                )
             })?;
             db::save_email(&mut conn, &message_clone)
         })
@@ -150,8 +152,10 @@ fn handle_new_email(
                 let db_clone = db.clone();
                 let email_result = tokio::task::spawn_blocking(move || {
                     let mut conn = db_clone.get().map_err(|e| {
-                        Box::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                            as Box<dyn std::error::Error + Send + Sync>
+                        diesel::result::Error::DatabaseError(
+                            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+                            Box::new(e.to_string()),
+                        )
                     })?;
                     db::get_email_by_id(&mut conn, &email_id)
                 })
@@ -161,8 +165,8 @@ fn handle_new_email(
                     let recipients = email_record.recipients.clone();
                     let email_list_record: db::EmailListRecord = email_record.into();
                     broadcast
-                        .send(web::WebSocketMessage {
-                            event: web::WebSocketEvent::NewMail,
+                        .send(web::ws::WebSocketMessage {
+                            event: web::ws::WebSocketEvent::NewMail,
                             email: Some(email_list_record),
                             email_id: None,
                             recipients: Some(recipients),

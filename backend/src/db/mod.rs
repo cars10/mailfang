@@ -1,6 +1,7 @@
 use crate::models::*;
 use crate::schema;
 use crate::smtp;
+use crate::web::error::DieselError;
 use ::r2d2::PooledConnection;
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
@@ -8,6 +9,9 @@ use diesel::r2d2::{self, ConnectionManager};
 use serde::Serialize;
 use std::sync::Arc;
 use uuid::Uuid;
+
+pub mod counts;
+pub mod emails;
 
 #[derive(HasQuery, Clone)]
 #[diesel(table_name = schema::emails)]
@@ -155,11 +159,8 @@ pub struct AttachmentContent {
     pub data: Vec<u8>,
 }
 
-pub fn save_email(
-    conn: &mut DbConnection,
-    message: &smtp::Email,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    conn.transaction::<_, Box<dyn std::error::Error + Send + Sync>, _>(|conn| {
+pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<String, DieselError> {
+    conn.transaction::<_, DieselError, _>(|conn| {
         // Generate attachment IDs
         let mut attachment_ids: Vec<String> = Vec::new();
         for _ in &message.attachments {
@@ -303,97 +304,10 @@ macro_rules! apply_search_filters {
     }};
 }
 
-// Helper function to load recipients for a list of email IDs
-fn load_recipients_for_emails(
-    conn: &mut DbConnection,
-    email_ids: &[String],
-) -> Result<std::collections::HashMap<String, Vec<String>>, Box<dyn std::error::Error + Send + Sync>>
-{
-    let all_recipients = schema::email_recipients::table
-        .inner_join(schema::recipients::table)
-        .filter(schema::email_recipients::email_id.eq_any(email_ids))
-        .select((
-            schema::email_recipients::email_id,
-            schema::recipients::email,
-        ))
-        .load::<(String, String)>(conn)?;
-
-    let mut recipients_map: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
-    for (email_id, recipient_email) in all_recipients {
-        recipients_map
-            .entry(email_id)
-            .or_insert_with(Vec::new)
-            .push(recipient_email);
-    }
-
-    Ok(recipients_map)
-}
-
-// Helper function to convert EmailListPartial to EmailListRecord with recipients
-fn emails_to_records(
-    emails: Vec<EmailListPartial>,
-    mut recipients_map: std::collections::HashMap<String, Vec<String>>,
-) -> Vec<EmailListRecord> {
-    emails
-        .into_iter()
-        .map(|email| {
-            let id_clone = email.id.clone();
-            let recipients = recipients_map.remove(&id_clone).unwrap_or_default();
-            EmailListRecord {
-                id: email.id,
-                subject: email.subject,
-                date: email.date,
-                created_at: email.created_at,
-                from: email.from,
-                read: email.read,
-                has_attachments: email.has_attachments,
-                recipients,
-            }
-        })
-        .collect()
-}
-
-fn process_emails_with_recipients(
-    conn: &mut DbConnection,
-    emails: Vec<EmailListPartial>,
-) -> Result<Vec<EmailListRecord>, Box<dyn std::error::Error + Send + Sync>> {
-    let email_ids: Vec<String> = emails.iter().map(|e| e.id.clone()).collect();
-    let recipients_map = load_recipients_for_emails(conn, &email_ids)?;
-    Ok(emails_to_records(emails, recipients_map))
-}
-
-pub fn get_all_emails(
-    conn: &mut DbConnection,
-    query_params: &ListQuery,
-) -> Result<(Vec<EmailListRecord>, u64), Box<dyn std::error::Error + Send + Sync>> {
-    let build_query = || {
-        let mut query = schema::emails::table.into_boxed();
-        if let Some(ref search_term) = query_params.search {
-            query = apply_search_filters!(query, search_term);
-        }
-        query
-    };
-
-    let total_count: i64 = build_query().count().get_result(conn)?;
-    let num_pages = (total_count as f64 / query_params.per_page as f64).ceil() as u64;
-
-    let emails = build_query()
-        .select(EmailListPartial::as_select())
-        .order(schema::emails::created_at.desc())
-        .offset(((query_params.page - 1) * query_params.per_page) as i64)
-        .limit(query_params.per_page as i64)
-        .load::<EmailListPartial>(conn)?;
-
-    let records = process_emails_with_recipients(conn, emails)?;
-
-    Ok((records, num_pages))
-}
-
 pub fn get_email_by_id(
     conn: &mut DbConnection,
     email_id: &str,
-) -> Result<Option<EmailRecord>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<EmailRecord>, DieselError> {
     let email = EmailPartial::query()
         .filter(schema::emails::id.eq(email_id))
         .first::<EmailPartial>(conn)
@@ -443,18 +357,13 @@ pub fn get_email_by_id(
     }
 }
 
-pub fn delete_email_by_id(
-    conn: &mut DbConnection,
-    email_id: &str,
-) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+pub fn delete_email_by_id(conn: &mut DbConnection, email_id: &str) -> Result<usize, DieselError> {
     let affected = diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
         .execute(conn)?;
     Ok(affected)
 }
 
-pub fn delete_all_emails(
-    conn: &mut DbConnection,
-) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+pub fn delete_all_emails(conn: &mut DbConnection) -> Result<usize, DieselError> {
     let affected = diesel::delete(schema::emails::table).execute(conn)?;
     Ok(affected)
 }
@@ -463,7 +372,7 @@ pub fn mark_email_read(
     conn: &mut DbConnection,
     email_id: &str,
     read: bool,
-) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<usize, DieselError> {
     let affected = diesel::update(schema::emails::table.filter(schema::emails::id.eq(email_id)))
         .set(schema::emails::read.eq(read))
         .execute(conn)?;
@@ -473,7 +382,7 @@ pub fn mark_email_read(
 pub fn get_attachment_by_id(
     conn: &mut DbConnection,
     attachment_id: &str,
-) -> Result<Option<AttachmentContent>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<AttachmentContent>, DieselError> {
     let attachment = schema::email_attachments::table
         .filter(schema::email_attachments::id.eq(attachment_id))
         .first::<EmailAttachment>(conn)
@@ -490,7 +399,7 @@ pub fn get_attachment_by_id(
 pub fn get_rendered_data_by_id(
     conn: &mut DbConnection,
     email_id: &str,
-) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<String>, DieselError> {
     let data = schema::emails::table
         .filter(schema::emails::id.eq(email_id))
         .select(schema::emails::rendered_body_html)
@@ -503,7 +412,7 @@ pub fn get_rendered_data_by_id(
 pub fn get_raw_data_by_id(
     conn: &mut DbConnection,
     email_id: &str,
-) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Option<String>, DieselError> {
     let data = schema::emails::table
         .filter(schema::emails::id.eq(email_id))
         .select(schema::emails::raw_data)
@@ -511,81 +420,4 @@ pub fn get_raw_data_by_id(
         .optional()?;
 
     Ok(data)
-}
-
-pub fn get_email_stats(
-    conn: &mut DbConnection,
-) -> Result<EmailStats, Box<dyn std::error::Error + Send + Sync>> {
-    let inbox_count: i64 = schema::emails::table.count().get_result(conn)?;
-
-    let rows = schema::recipients::table
-        .inner_join(schema::email_recipients::table)
-        .group_by((schema::recipients::id, schema::recipients::email))
-        .select((
-            schema::recipients::email,
-            diesel::dsl::count(schema::email_recipients::email_id),
-        ))
-        .order_by(schema::recipients::email.asc())
-        .load::<(String, i64)>(conn)?;
-
-    let recipients = rows
-        .into_iter()
-        .map(|(recipient, count)| RecipientStats {
-            recipient,
-            count: count as u64,
-        })
-        .collect();
-
-    Ok(EmailStats {
-        inbox: inbox_count as u64,
-        recipients,
-    })
-}
-
-#[derive(serde::Serialize, Clone)]
-pub struct RecipientStats {
-    pub recipient: String,
-    pub count: u64,
-}
-
-#[derive(serde::Serialize, Clone)]
-pub struct EmailStats {
-    pub inbox: u64,
-    pub recipients: Vec<RecipientStats>,
-}
-
-pub fn get_emails_by_recipient(
-    conn: &mut DbConnection,
-    recipient_email: &str,
-    query_params: &ListQuery,
-) -> Result<(Vec<EmailListRecord>, u64), Box<dyn std::error::Error + Send + Sync>> {
-    let build_query = || {
-        let mut query = schema::emails::table
-            .inner_join(schema::email_recipients::table)
-            .inner_join(
-                schema::recipients::table
-                    .on(schema::email_recipients::recipient_id.eq(schema::recipients::id)),
-            )
-            .filter(schema::recipients::email.eq(recipient_email))
-            .into_boxed();
-
-        if let Some(ref search_term) = query_params.search {
-            query = apply_search_filters!(query, search_term);
-        }
-        query
-    };
-
-    let total_count: i64 = build_query().count().get_result(conn)?;
-    let num_pages = (total_count as f64 / query_params.per_page as f64).ceil() as u64;
-
-    let emails = build_query()
-        .select(EmailListPartial::as_select())
-        .order(schema::emails::created_at.desc())
-        .offset(((query_params.page - 1) * query_params.per_page) as i64)
-        .limit(query_params.per_page as i64)
-        .load::<EmailListPartial>(conn)?;
-
-    let records = process_emails_with_recipients(conn, emails)?;
-
-    Ok((records, num_pages))
 }
