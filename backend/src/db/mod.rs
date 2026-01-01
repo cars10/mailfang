@@ -289,21 +289,6 @@ pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<Stri
     })
 }
 
-// Macro to apply search filters to a query
-macro_rules! apply_search_filters {
-    ($query:expr, $search_term:expr) => {{
-        let pattern = format!("%{}%", $search_term);
-        $query.filter(
-            schema::emails::subject
-                .like(pattern.clone())
-                .or(schema::emails::message_id.like(pattern.clone()))
-                .or(schema::emails::from.like(pattern.clone()))
-                .or(schema::emails::body_text.like(pattern.clone()))
-                .or(schema::emails::body_html.like(pattern)),
-        )
-    }};
-}
-
 pub fn get_email_by_id(
     conn: &mut DbConnection,
     email_id: &str,
