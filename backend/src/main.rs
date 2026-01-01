@@ -143,7 +143,7 @@ fn handle_new_email(
                     Box::new(e.to_string()),
                 )
             })?;
-            db::save_email(&mut conn, &message_clone)
+            db::save_email::save_email(&mut conn, &message_clone)
         })
         .await;
 

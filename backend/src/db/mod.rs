@@ -1,17 +1,16 @@
 use crate::models::*;
 use crate::schema;
-use crate::smtp;
 use crate::web::error::DieselError;
 use ::r2d2::PooledConnection;
-use chrono::{NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use serde::Serialize;
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub mod counts;
 pub mod emails;
+pub mod save_email;
 
 #[derive(HasQuery, Clone)]
 #[diesel(table_name = schema::emails)]
@@ -157,136 +156,6 @@ pub struct AttachmentContent {
     pub filename: Option<String>,
     pub mime_type: String,
     pub data: Vec<u8>,
-}
-
-pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<String, DieselError> {
-    conn.transaction::<_, DieselError, _>(|conn| {
-        // Generate attachment IDs
-        let mut attachment_ids: Vec<String> = Vec::new();
-        for _ in &message.attachments {
-            attachment_ids.push(Uuid::new_v4().to_string());
-        }
-
-        let rendered_body_html = if !message.body_html.is_empty() {
-            let mut processed_html = message.body_html.clone();
-            let mut cid_map = std::collections::HashMap::new();
-            for (att, id) in message.attachments.iter().zip(attachment_ids.iter()) {
-                if let Some(ref cid) = att.content_id {
-                    let attachment_url = format!("/api/attachments/{}", id);
-                    let cid_clean = cid
-                        .trim_start_matches('<')
-                        .trim_end_matches('>')
-                        .to_string();
-                    cid_map.insert(cid_clean.clone(), attachment_url.clone());
-                    if cid.starts_with('<') && cid.ends_with('>') {
-                        cid_map.insert(cid.clone(), attachment_url);
-                    }
-                }
-            }
-
-            if !cid_map.is_empty() {
-                use regex::Regex;
-                let re = Regex::new(r#"(?i)src\s*=\s*(["']?)cid:([^"'\s>]+)"#).unwrap();
-                processed_html = re
-                    .replace_all(&processed_html, |caps: &regex::Captures| {
-                        let quote = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                        let cid = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-                        let cid_clean = cid.trim_start_matches('<').trim_end_matches('>');
-                        if let Some(attachment_url) = cid_map.get(cid_clean) {
-                            format!("src={}{}{}", quote, attachment_url, quote)
-                        } else if let Some(attachment_url) = cid_map.get(cid) {
-                            format!("src={}{}{}", quote, attachment_url, quote)
-                        } else {
-                            caps.get(0)
-                                .map(|m| m.as_str().to_string())
-                                .unwrap_or_default()
-                        }
-                    })
-                    .to_string();
-            }
-            Some(processed_html)
-        } else {
-            None
-        };
-
-        let now = Utc::now().naive_utc();
-        let new_email = Email {
-            id: message.id.to_string(),
-            message_id: message.message_id.clone(),
-            subject: message.subject.clone(),
-            date: message.date.map(|d| d.naive_utc()),
-            headers: message
-                .headers
-                .as_ref()
-                .map(|h| serde_json::to_string(h).unwrap()),
-            from: message.from.clone(),
-            size: message.size as i32,
-            raw_data: message.data.clone(),
-            body_text: Some(message.body_text.clone()),
-            body_html: Some(message.body_html.clone()),
-            rendered_body_html,
-            read: false,
-            has_attachments: !message.attachments.is_empty(),
-            created_at: now,
-        };
-
-        diesel::insert_into(schema::emails::table)
-            .values(&new_email)
-            .execute(conn)?;
-
-        for recipient_email in &message.to {
-            if recipient_email.trim().is_empty() {
-                continue;
-            }
-
-            let recipient_id = match schema::recipients::table
-                .filter(schema::recipients::email.eq(recipient_email))
-                .select(schema::recipients::id)
-                .first::<String>(conn)
-            {
-                Ok(id) => id,
-                Err(_) => {
-                    let new_id = Uuid::new_v4().to_string();
-                    diesel::insert_into(schema::recipients::table)
-                        .values((
-                            schema::recipients::id.eq(&new_id),
-                            schema::recipients::email.eq(recipient_email),
-                        ))
-                        .execute(conn)?;
-                    new_id
-                }
-            };
-
-            diesel::insert_into(schema::email_recipients::table)
-                .values((
-                    schema::email_recipients::email_id.eq(&new_email.id),
-                    schema::email_recipients::recipient_id.eq(&recipient_id),
-                ))
-                .execute(conn)?;
-        }
-
-        for (attachment, attachment_id) in message.attachments.iter().zip(attachment_ids.iter()) {
-            let new_attachment = EmailAttachment {
-                id: attachment_id.clone(),
-                email_id: new_email.id.clone(),
-                filename: attachment.filename.clone(),
-                mime_type: attachment.mime_type.clone(),
-                data: attachment.data.clone(),
-                size: attachment.data.len() as i32,
-                content_id: attachment.content_id.clone(),
-                headers: attachment
-                    .headers
-                    .as_ref()
-                    .map(|h| serde_json::to_string(h).unwrap()),
-                created_at: now,
-            };
-            diesel::insert_into(schema::email_attachments::table)
-                .values(&new_attachment)
-                .execute(conn)?;
-        }
-
-        Ok(new_email.id)
-    })
 }
 
 pub fn get_email_by_id(
