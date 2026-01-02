@@ -64,12 +64,12 @@ pub async fn get_email(
     Path(id): Path<String>,
 ) -> Result<Json<crate::db::EmailRecord>, WebError> {
     let mut conn = state.pool.get()?;
-    let email = db::get_email_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     if !email.read {
-        db::mark_email_read(&mut conn, &id, true)?;
+        db::email::mark_email_read(&mut conn, &id, true)?;
 
-        let updated_email = db::get_email_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+        let updated_email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
         let email_list_record: crate::db::EmailListRecord = updated_email.clone().into();
         state
@@ -92,7 +92,7 @@ pub async fn delete_email(
     Path(id): Path<String>,
 ) -> Result<StatusCode, WebError> {
     let mut conn = state.pool.get()?;
-    let rows_affected = db::delete_email_by_id(&mut conn, &id)?;
+    let rows_affected = db::email::delete_email(&mut conn, &id)?;
 
     if rows_affected > 0 {
         state
@@ -112,7 +112,7 @@ pub async fn delete_email(
 
 pub async fn delete_emails(State(state): State<AppState>) -> Result<StatusCode, WebError> {
     let mut conn = state.pool.get()?;
-    db::delete_all_emails(&mut conn)?;
+    db::emails::delete_all_emails(&mut conn)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -121,7 +121,7 @@ pub async fn get_raw_email(
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let raw_data = db::get_raw_data_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let raw_data = db::email::get_raw_data(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -145,7 +145,7 @@ pub async fn get_rendered_email(
     Query(params): Query<RenderedQueryParams>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let rendered_html = db::get_rendered_data_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let rendered_html = db::email::get_rendered_data(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     // Default to blocking remote content unless explicitly allowed
     let allow_remote_content = params.allow_remote_content.unwrap_or(false);
@@ -169,7 +169,7 @@ pub async fn get_attachment(
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let attachment = db::get_attachment_by_id(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let attachment = db::attachment::get_attachment(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     let mut headers = HeaderMap::new();
     headers.insert(

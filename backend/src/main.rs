@@ -157,7 +157,7 @@ fn handle_new_email(
                             Box::new(e.to_string()),
                         )
                     })?;
-                    db::get_email_by_id(&mut conn, &email_id)
+                    db::email::get_email(&mut conn, &email_id)
                 })
                 .await;
 

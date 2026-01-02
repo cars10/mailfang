@@ -4,8 +4,8 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper, TextExpressionMethods,
 };
 
-use crate::db::ListQuery;
 use crate::db::{EmailListPartial, EmailListRecord};
+use crate::db::{ListQuery, vacuum_database};
 use crate::{db::DbConnection, schema, web::error::DieselError};
 
 fn build_search_pattern(search_term: &str) -> String {
@@ -151,4 +151,14 @@ pub fn get_emails_by_recipient(
     let records = process_emails_with_recipients(conn, emails)?;
 
     Ok((records, num_pages))
+}
+
+pub fn delete_all_emails(conn: &mut DbConnection) -> Result<usize, DieselError> {
+    let affected = diesel::delete(schema::emails::table).execute(conn)?;
+
+    if affected > 0 {
+        vacuum_database(conn)?;
+    }
+
+    Ok(affected)
 }
