@@ -1,5 +1,5 @@
 # Stage 1: Frontend builder
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -27,6 +27,8 @@ RUN mkdir src && \
     rm -rf src
 
 COPY backend/src ./src
+COPY backend/migrations ./migrations
+
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 RUN cargo build --release --features embed-frontend
@@ -60,7 +62,7 @@ ENV DATABASE_URL=sqlite:///data/mailfang.db
 ENV WEB_PORT=3000
 ENV SMTP_PORT=2525
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=1s --retries=5 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 CMD ["/app/mailfang"]
