@@ -64,14 +64,13 @@ pub async fn get_email(
     Path(id): Path<String>,
 ) -> Result<Json<crate::db::EmailRecord>, WebError> {
     let mut conn = state.pool.get()?;
-    let email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let mut email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     if !email.read {
         db::email::mark_email_read(&mut conn, &id, true)?;
+        email.read = true;
 
-        let updated_email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
-
-        let email_list_record: crate::db::EmailListRecord = updated_email.clone().into();
+        let email_list_record: crate::db::EmailListRecord = email.clone().into();
         state
             .broadcast
             .send(WebSocketMessage {
@@ -81,10 +80,8 @@ pub async fn get_email(
                 recipients: None,
             })
             .ok();
-        Ok(Json(updated_email))
-    } else {
-        Ok(Json(email))
     }
+    Ok(Json(email))
 }
 
 pub async fn delete_email(
