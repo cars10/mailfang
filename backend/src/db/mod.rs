@@ -211,14 +211,29 @@ pub fn get_email_by_id(
     }
 }
 
+fn vacuum_database(conn: &mut DbConnection) -> Result<(), DieselError> {
+    diesel::sql_query("VACUUM").execute(conn)?;
+    Ok(())
+}
+
 pub fn delete_email_by_id(conn: &mut DbConnection, email_id: &str) -> Result<usize, DieselError> {
     let affected = diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
         .execute(conn)?;
+
+    if affected > 0 {
+        vacuum_database(conn)?;
+    }
+
     Ok(affected)
 }
 
 pub fn delete_all_emails(conn: &mut DbConnection) -> Result<usize, DieselError> {
     let affected = diesel::delete(schema::emails::table).execute(conn)?;
+
+    if affected > 0 {
+        vacuum_database(conn)?;
+    }
+
     Ok(affected)
 }
 
