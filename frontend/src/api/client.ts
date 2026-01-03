@@ -27,7 +27,9 @@ export class ApiClient {
     const response = await fetch(url, config)
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`)
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}`
+      )
     }
 
     if (
@@ -90,7 +92,9 @@ export class ApiClient {
     const response = await fetch(url)
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`)
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}`
+      )
     }
 
     return response.text()

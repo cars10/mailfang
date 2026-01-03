@@ -5,7 +5,7 @@
     </div>
 
     <div v-else-if="error" class="flex items-center justify-center h-full">
-      <div class="text-red-500">{{ error }}</div>
+      <div class="text-gray-500">{{ error }}</div>
     </div>
 
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
