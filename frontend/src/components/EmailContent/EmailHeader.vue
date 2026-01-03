@@ -31,7 +31,7 @@
         <div class="grid grid-cols-[auto_1fr] gap-x-2">
           <template v-if="email.from">
             <div
-              class="flex items-center text-gray-500 select-text text-nowrap"
+              class="flex items-center text-gray-500 select-text text-nowrap py-1"
             >
               From:
             </div>
@@ -41,7 +41,9 @@
           </template>
 
           <template v-if="email.recipients.length > 0">
-            <div class="flex items-start text-gray-500 select-text text-nowrap">
+            <div
+              class="flex items-start text-gray-500 select-text text-nowrap py-1"
+            >
               To:
             </div>
             <div class="w-fit">
@@ -56,7 +58,9 @@
           </template>
 
           <template v-if="email.headers?.Cc">
-            <div class="flex items-start text-gray-500 select-text text-nowrap">
+            <div
+              class="flex items-start text-gray-500 select-text text-nowrap py-1"
+            >
               CC:
             </div>
             <div class="w-fit">
@@ -71,7 +75,9 @@
           </template>
 
           <template v-if="email.headers?.Bcc">
-            <div class="flex items-start text-gray-500 select-text text-nowrap">
+            <div
+              class="flex items-start text-gray-500 select-text text-nowrap py-1"
+            >
               BCC:
             </div>
             <div class="w-fit">
@@ -86,7 +92,9 @@
           </template>
 
           <template v-if="email.headers?.['Reply-To']">
-            <div class="flex items-start text-gray-500 select-text text-nowrap">
+            <div
+              class="flex items-start text-gray-500 select-text text-nowrap py-1"
+            >
               Reply-To:
             </div>
             <div class="w-fit">
@@ -104,12 +112,16 @@
 
       <div>
         <div class="grid grid-cols-[auto_1fr] gap-x-2">
-          <div class="flex items-center text-gray-500 select-text">Date:</div>
+          <div class="flex items-center text-gray-500 select-text py-1">
+            Date:
+          </div>
           <div class="text-gray-600 select-text w-fit">
             <CopyBadge :text="formatFullDate(email.date || email.created_at)" />
           </div>
 
-          <div class="flex items-start text-gray-500 select-text">Size:</div>
+          <div class="flex items-start text-gray-500 select-text py-1">
+            Size:
+          </div>
           <div class="text-gray-600 select-text w-fit flex flex-col">
             <CopyBadge :text="formatSize(email.size)" />
             <CopyBadge :text="`${email.size} bytes`" />
