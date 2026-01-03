@@ -66,7 +66,7 @@
       <CodeViewer v-else :content="rawContent" />
     </div>
 
-    <MailHeaders v-if="viewMode === 'headers'" :email="email" />
+    <EmailSmtpHeaders v-if="viewMode === 'headers'" :email="email" />
   </div>
 </template>
 
@@ -84,7 +84,7 @@
   import type { ViewMode } from './EmailView.vue'
   import { useMailLayoutStore, ScreenSize } from '@/stores/MailLayout'
   import ZoomControls from './ZoomControls.vue'
-  import MailHeaders from './EmailHeaders.vue'
+  import EmailSmtpHeaders from './EmailSmtpHeaders.vue'
   import Toggle from '@/components/shared/Toggle/Toggle.vue'
   import ButtonGroup from '@/components/shared/ButtonGroup/ButtonGroup.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
