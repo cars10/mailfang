@@ -35,9 +35,9 @@ pub struct Email {
     Deserialize,
 )]
 #[diesel(belongs_to(Email))]
-#[diesel(table_name = email_attachments)]
+#[diesel(table_name = attachments)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct EmailAttachment {
+pub struct Attachment {
     pub id: String,
     pub email_id: String,
     pub filename: Option<String>,
@@ -46,6 +46,7 @@ pub struct EmailAttachment {
     pub size: i32,
     pub content_id: Option<String>,
     pub headers: Option<String>,
+    pub disposition: Option<String>,
     pub created_at: NaiveDateTime,
 }
 

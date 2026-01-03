@@ -1,6 +1,6 @@
 use crate::{
     db::DbConnection,
-    models::{Email, EmailAttachment},
+    models::{Attachment, Email},
     schema, smtp,
     web::error::DieselError,
 };
@@ -186,7 +186,7 @@ fn save_attachments(
     now: chrono::NaiveDateTime,
 ) -> Result<(), DieselError> {
     for (attachment, attachment_id) in attachments.iter().zip(attachment_ids.iter()) {
-        let new_attachment = EmailAttachment {
+        let new_attachment = Attachment {
             id: attachment_id.clone(),
             email_id: email_id.to_string(),
             filename: attachment.filename.clone(),
@@ -198,9 +198,10 @@ fn save_attachments(
                 .headers
                 .as_ref()
                 .map(|h| serde_json::to_string(h).unwrap()),
+            disposition: attachment.disposition.clone(),
             created_at: now,
         };
-        diesel::insert_into(schema::email_attachments::table)
+        diesel::insert_into(schema::attachments::table)
             .values(&new_attachment)
             .execute(conn)?;
     }

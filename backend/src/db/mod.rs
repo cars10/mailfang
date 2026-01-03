@@ -44,15 +44,16 @@ pub struct EmailPartial {
 }
 
 #[derive(HasQuery, Clone)]
-#[diesel(table_name = schema::email_attachments)]
+#[diesel(table_name = schema::attachments)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
-pub struct EmailAttachmentPartial {
+pub struct AttachmentPartial {
     pub id: String,
     pub filename: Option<String>,
     pub mime_type: String,
     pub size: i32,
     pub content_id: Option<String>,
     pub headers: Option<String>,
+    pub disposition: Option<String>,
     pub created_at: NaiveDateTime,
 }
 
@@ -110,7 +111,7 @@ pub struct EmailRecord {
     pub body_html: Option<String>,
     pub read: bool,
     pub recipients: Vec<String>,
-    pub attachments: Vec<EmailAttachmentRecord>,
+    pub attachments: Vec<AttachmentRecord>,
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -141,7 +142,7 @@ impl From<EmailRecord> for EmailListRecord {
 }
 
 #[derive(serde::Serialize, Clone)]
-pub struct EmailAttachmentRecord {
+pub struct AttachmentRecord {
     pub id: String,
     pub filename: Option<String>,
     pub mime_type: String,
@@ -149,6 +150,7 @@ pub struct EmailAttachmentRecord {
     pub content_id: Option<String>,
     #[serde(serialize_with = "serialize_json_string")]
     pub headers: Option<String>,
+    pub disposition: Option<String>,
     pub created_at: NaiveDateTime,
 }
 

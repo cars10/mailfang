@@ -20,7 +20,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    email_attachments (id) {
+    attachments (id) {
         id -> Text,
         email_id -> Text,
         filename -> Nullable<Text>,
@@ -29,6 +29,7 @@ diesel::table! {
         size -> Integer,
         content_id -> Nullable<Text>,
         headers -> Nullable<Text>,
+        disposition -> Nullable<Text>,
         created_at -> Timestamp,
     }
 }
@@ -47,13 +48,13 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(email_attachments -> emails (email_id));
+diesel::joinable!(attachments -> emails (email_id));
 diesel::joinable!(email_recipients -> emails (email_id));
 diesel::joinable!(email_recipients -> recipients (recipient_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     emails,
-    email_attachments,
+    attachments,
     recipients,
     email_recipients,
 );

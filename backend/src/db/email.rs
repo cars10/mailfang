@@ -2,7 +2,7 @@ use diesel::prelude::*;
 
 use crate::{
     db::{
-        DbConnection, EmailAttachmentPartial, EmailAttachmentRecord, EmailPartial, EmailRecord,
+        AttachmentPartial, AttachmentRecord, DbConnection, EmailPartial, EmailRecord,
         vacuum_database,
     },
     schema,
@@ -19,9 +19,9 @@ pub fn get_email(
         .optional()?;
 
     if let Some(email) = email {
-        let attachments = EmailAttachmentPartial::query()
-            .filter(schema::email_attachments::email_id.eq(&email.id))
-            .load::<EmailAttachmentPartial>(conn)?;
+        let attachments = AttachmentPartial::query()
+            .filter(schema::attachments::email_id.eq(&email.id))
+            .load::<AttachmentPartial>(conn)?;
 
         let recipients: Vec<String> = schema::email_recipients::table
             .inner_join(schema::recipients::table)
@@ -31,13 +31,14 @@ pub fn get_email(
 
         let attachment_records = attachments
             .into_iter()
-            .map(|att| EmailAttachmentRecord {
+            .map(|att| AttachmentRecord {
                 id: att.id,
                 filename: att.filename,
                 mime_type: att.mime_type,
                 size: att.size,
                 content_id: att.content_id,
                 headers: att.headers,
+                disposition: att.disposition,
                 created_at: att.created_at,
             })
             .collect();

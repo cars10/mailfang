@@ -15,7 +15,7 @@ CREATE TABLE emails (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE email_attachments (
+CREATE TABLE attachments (
     id TEXT PRIMARY KEY NOT NULL,
     email_id TEXT NOT NULL,
     filename TEXT,
@@ -24,6 +24,7 @@ CREATE TABLE email_attachments (
     size INTEGER NOT NULL,
     content_id TEXT,
     headers TEXT,
+    disposition TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (email_id) REFERENCES emails (id) ON DELETE CASCADE
 );

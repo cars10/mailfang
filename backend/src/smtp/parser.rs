@@ -10,6 +10,7 @@ pub struct EmailAttachment {
     pub data: Vec<u8>,
     pub content_id: Option<String>,
     pub headers: Option<serde_json::Value>,
+    pub disposition: Option<String>,
 }
 
 pub(super) struct ParsedEmailDetails {
@@ -123,12 +124,29 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
 
         let headers = extract_headers(attachment.headers());
 
+        // Extract Content-Disposition header value (inline or attachment)
+        let disposition = attachment
+            .headers()
+            .iter()
+            .find(|h| h.name().eq_ignore_ascii_case("Content-Disposition"))
+            .and_then(|h| h.value().as_text())
+            .map(|s| {
+                // Extract the first part before semicolon (e.g., "inline" or "attachment")
+                s.split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string()
+            })
+            .filter(|s| !s.is_empty());
+
         attachments.push(EmailAttachment {
             filename,
             mime_type,
             data,
             content_id,
             headers: Some(headers),
+            disposition,
         });
     }
 
