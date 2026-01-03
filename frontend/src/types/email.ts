@@ -1,10 +1,11 @@
-export interface EmailAttachment {
+export interface Attachment {
   id: string
   filename: string | null
   mime_type: string
   size: number
   content_id: string | null
   headers: Record<string, string[]> | null
+  disposition: string | null
   created_at: string
 }
 
@@ -21,7 +22,7 @@ export interface EmailRecord {
   body_text: string | null
   body_html: string | null
   read: boolean
-  attachments: EmailAttachment[]
+  attachments: Attachment[]
 }
 
 export interface EmailListRecord {

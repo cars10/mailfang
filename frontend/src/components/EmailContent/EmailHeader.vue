@@ -41,48 +41,62 @@
           </template>
 
           <template v-if="email.recipients.length > 0">
-            <div
-              class="flex items-center text-gray-500 select-text text-nowrap"
-            >
+            <div class="flex items-start text-gray-500 select-text text-nowrap">
               To:
             </div>
-            <div class="text-gray-600 select-text w-fit">
-              <CopyBadge :text="email.recipients.join(', ')" />
+            <div class="w-fit">
+              <div
+                v-for="recipient in email.recipients"
+                :key="recipient"
+                class="text-gray-600 select-text w-fit"
+              >
+                <CopyBadge :text="recipient" />
+              </div>
             </div>
           </template>
 
           <template v-if="email.headers?.Cc">
-            <div
-              class="flex items-center text-gray-500 select-text text-nowrap"
-            >
+            <div class="flex items-start text-gray-500 select-text text-nowrap">
               CC:
             </div>
-            <div class="text-gray-600 select-text w-fit">
-              <CopyBadge :text="email.headers?.Cc?.join(', ') || ''" />
+            <div class="w-fit">
+              <div
+                v-for="cc in email.headers?.Cc"
+                :key="cc"
+                class="text-gray-600 select-text w-fit"
+              >
+                <CopyBadge :text="cc" />
+              </div>
             </div>
           </template>
 
           <template v-if="email.headers?.Bcc">
-            <div
-              class="flex items-center text-gray-500 select-text text-nowrap"
-            >
+            <div class="flex items-start text-gray-500 select-text text-nowrap">
               BCC:
             </div>
-            <div class="text-gray-600 select-text w-fit">
-              <CopyBadge :text="email.headers?.Bcc?.join(', ') || ''" />
+            <div class="w-fit">
+              <div
+                v-for="bcc in email.headers?.Bcc"
+                :key="bcc"
+                class="text-gray-600 select-text w-fit"
+              >
+                <CopyBadge :text="bcc" />
+              </div>
             </div>
           </template>
 
           <template v-if="email.headers?.['Reply-To']">
-            <div
-              class="flex items-center text-gray-500 select-text text-nowrap"
-            >
+            <div class="flex items-start text-gray-500 select-text text-nowrap">
               Reply-To:
             </div>
-            <div class="text-gray-600 select-text w-fit">
-              <CopyBadge
-                :text="email.headers?.['Reply-To']?.join(', ') || ''"
-              />
+            <div class="w-fit">
+              <div
+                v-for="replyTo in email.headers?.['Reply-To']"
+                :key="replyTo"
+                class="text-gray-600 select-text w-fit"
+              >
+                <CopyBadge :text="replyTo" />
+              </div>
             </div>
           </template>
         </div>
@@ -95,9 +109,10 @@
             <CopyBadge :text="formatFullDate(email.date || email.created_at)" />
           </div>
 
-          <div class="flex items-center text-gray-500 select-text">Size:</div>
-          <div class="text-gray-600 select-text w-fit">
+          <div class="flex items-start text-gray-500 select-text">Size:</div>
+          <div class="text-gray-600 select-text w-fit flex flex-col">
             <CopyBadge :text="formatSize(email.size)" />
+            <CopyBadge :text="`${email.size} bytes`" />
           </div>
         </div>
       </div>

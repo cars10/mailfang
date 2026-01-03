@@ -9,13 +9,13 @@
     </div>
 
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
-      <MailHeader :email="email" />
+      <EmailHeader :email="email" />
 
-      <MailAttachments v-if="email.attachments.length > 0" :email="email" />
+      <EmailAttachments v-if="email.attachments.length > 0" :email="email" />
 
       <Tabs v-model="viewMode" :tabs="tabs" />
 
-      <MailContent :email="email" :view-mode="viewMode" />
+      <EmailContent :email="email" :view-mode="viewMode" />
     </div>
   </div>
 </template>
@@ -28,9 +28,9 @@
   import { apiClient } from '@/api/client'
   import type { EmailRecord } from '@/types/email'
   import Tabs from '@/components/shared/Tabs/Tabs.vue'
-  import MailHeader from './MailHeader.vue'
-  import MailAttachments from './MailAttachments.vue'
-  import MailContent from './MailContent.vue'
+  import EmailHeader from './EmailHeader.vue'
+  import EmailAttachments from './EmailAttachments.vue'
+  import EmailContent from './EmailContent.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
 
   const route = useRoute()
