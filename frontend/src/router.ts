@@ -1,18 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import EmailView from './components/EmailContent/EmailView.vue'
 import FullscreenEmailView from './components/EmailContent/FullscreenEmailView.vue'
-import MailLayout from './components/MailLayout/MailLayout.vue'
+import EmailLayout from './components/EmailLayout/EmailLayout.vue'
 
 const routes = [
   { path: '/', redirect: '/emails/inbox' },
   {
     path: '/emails/inbox',
-    component: MailLayout,
+    component: EmailLayout,
     children: [{ path: 'email/:id', component: EmailView }],
   },
   {
     path: '/emails/inbox/:recipient',
-    component: MailLayout,
+    component: EmailLayout,
     children: [{ path: 'email/:id', component: EmailView }],
   },
   { path: '/emails/:id/fullscreen', component: FullscreenEmailView },

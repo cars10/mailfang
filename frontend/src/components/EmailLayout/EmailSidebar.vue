@@ -28,7 +28,7 @@
           </router-link>
         </div>
 
-        <MailSidebarInboxes :counts="props.counts" />
+        <EmailSidebarInboxes :counts="props.counts" />
 
         <div class="flex flex-col gap-2 mt-4">
           <button
@@ -55,7 +55,7 @@
   import { apiClient } from '@/api/client'
   import VueResizable from 'vue-resizable'
   import { DEFAULT_SIDEBAR_WIDTH } from '@/stores/MailLayout'
-  import MailSidebarInboxes from './MailSidebarInboxes.vue'
+  import EmailSidebarInboxes from './EmailSidebarInboxes.vue'
 
   interface Props {
     counts: EmailCounts

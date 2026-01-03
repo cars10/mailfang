@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-row h-full">
-    <MailSidebar :counts="counts" />
+    <EmailSidebar :counts="counts" />
 
-    <MailList :emails="emails" :loading="loading" @load-more="fetchNextPage" />
+    <EmailList :emails="emails" :loading="loading" @load-more="fetchNextPage" />
 
     <div class="grow">
       <RouterView />
@@ -16,8 +16,8 @@
   import { apiClient } from '@/api/client'
   import { useSearchStore } from '@/stores/Search'
   import type { EmailListRecord, EmailCounts } from '@/types/email'
-  import MailSidebar from './MailSidebar.vue'
-  import MailList from './MailList.vue'
+  import EmailSidebar from './EmailSidebar.vue'
+  import EmailList from './EmailList.vue'
   import { useRoute } from 'vue-router'
 
   const searchStore = useSearchStore()
