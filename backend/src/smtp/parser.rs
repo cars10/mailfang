@@ -6,7 +6,7 @@ use tracing::warn;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmailAttachment {
     pub filename: Option<String>,
-    pub mime_type: String,
+    pub content_type: Option<String>,
     pub data: Vec<u8>,
     pub content_id: Option<String>,
     pub headers: Option<serde_json::Value>,
@@ -27,7 +27,7 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
     let parser = MessageParser::default();
     match parser.parse(raw.as_bytes()) {
         Some(message) => {
-            let headers = extract_headers(&message.headers());
+            let headers = extract_headers_from_raw(message.headers_raw());
 
             let body_text = message
                 .body_text(0)
@@ -76,43 +76,42 @@ pub(super) fn parse_email_details(raw: &str) -> ParsedEmailDetails {
     }
 }
 
-fn extract_headers(headers: &[mail_parser::Header<'_>]) -> serde_json::Value {
+fn extract_headers_from_raw<'a>(
+    headers_raw: impl Iterator<Item = (&'a str, &'a str)>,
+) -> serde_json::Value {
     let mut header_map: HashMap<String, Vec<String>> = HashMap::new();
 
-    for header in headers {
-        let key = header.name().to_string();
-        let value = header.value().as_text().unwrap_or_default().to_string();
-
-        header_map.entry(key).or_default().push(value);
+    for (name, value) in headers_raw {
+        header_map
+            .entry(name.to_string())
+            .or_default()
+            .push(value.to_string());
     }
 
     serde_json::to_value(header_map).unwrap_or(serde_json::Value::Object(serde_json::Map::new()))
+}
+
+fn format_content_type(content_type: Option<&mail_parser::ContentType<'_>>) -> Option<String> {
+    content_type.map(|ct| {
+        if let Some(subtype) = ct.subtype() {
+            format!("{}/{}", ct.ctype(), subtype)
+        } else {
+            ct.ctype().to_string()
+        }
+    })
 }
 
 fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachment> {
     let mut attachments = Vec::new();
 
     for attachment in message.attachments() {
-        // Get filename from Content-Disposition or Content-Type name parameter
         let filename = attachment.attachment_name().map(|s| s.to_string());
 
-        // Get Content-ID, removing angle brackets if present
         let content_id = attachment.content_id().map(|cid| {
             cid.trim_start_matches('<')
                 .trim_end_matches('>')
                 .to_string()
         });
-
-        let mime_type = attachment
-            .content_type()
-            .map(|ct| {
-                if let Some(subtype) = ct.subtype() {
-                    format!("{}/{}", ct.ctype(), subtype)
-                } else {
-                    ct.ctype().to_string()
-                }
-            })
-            .unwrap_or_else(|| "application/octet-stream".to_string());
 
         let data = match &attachment.body {
             PartType::Binary(data) | PartType::InlineBinary(data) => data.to_vec(),
@@ -122,30 +121,15 @@ fn collect_attachments(message: &mail_parser::Message<'_>) -> Vec<EmailAttachmen
             PartType::Multipart(_) => Vec::new(),
         };
 
-        let headers = extract_headers(attachment.headers());
-
-        // Extract Content-Disposition header value (inline or attachment)
-        let disposition = attachment
-            .headers()
-            .iter()
-            .find(|h| h.name().eq_ignore_ascii_case("Content-Disposition"))
-            .and_then(|h| h.value().as_text())
-            .map(|s| {
-                // Extract the first part before semicolon (e.g., "inline" or "attachment")
-                s.split(';')
-                    .next()
-                    .unwrap_or("")
-                    .trim()
-                    .to_string()
-            })
-            .filter(|s| !s.is_empty());
+        let content_type = format_content_type(attachment.content_type());
+        let disposition = format_content_type(attachment.content_disposition());
 
         attachments.push(EmailAttachment {
             filename,
-            mime_type,
+            content_type,
             data,
             content_id,
-            headers: Some(headers),
+            headers: None,
             disposition,
         });
     }
@@ -176,7 +160,7 @@ Attachment body\r\n\
         assert_eq!(details.attachments.len(), 1);
         let attachment = &details.attachments[0];
         assert_eq!(attachment.filename.as_deref(), Some("note.txt"));
-        assert_eq!(attachment.mime_type, "text/plain");
+        assert_eq!(attachment.content_type.as_deref(), Some("text/plain"));
         assert_eq!(attachment.data, b"Attachment body");
         assert!(details.message_id.is_none());
     }

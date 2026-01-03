@@ -24,11 +24,10 @@ diesel::table! {
         id -> Text,
         email_id -> Text,
         filename -> Nullable<Text>,
-        mime_type -> Text,
+        content_type -> Nullable<Text>,
         data -> Binary,
         size -> Integer,
         content_id -> Nullable<Text>,
-        headers -> Nullable<Text>,
         disposition -> Nullable<Text>,
         created_at -> Timestamp,
     }

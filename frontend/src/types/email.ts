@@ -1,10 +1,9 @@
 export interface Attachment {
   id: string
   filename: string | null
-  mime_type: string
+  content_type: string | null
   size: number
   content_id: string | null
-  headers: Record<string, string[]> | null
   disposition: string | null
   created_at: string
 }

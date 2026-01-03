@@ -19,7 +19,7 @@ pub fn get_attachment(
     Ok(attachment.map(|att| AttachmentContent {
         id: att.id,
         filename: att.filename,
-        mime_type: att.mime_type,
+        content_type: att.content_type,
         data: att.data,
     }))
 }

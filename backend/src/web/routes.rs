@@ -169,9 +169,10 @@ pub async fn get_attachment(
     let attachment = db::attachment::get_attachment(&mut conn, &id)?.ok_or(WebError::NotFound)?;
 
     let mut headers = HeaderMap::new();
+    let content_type = attachment.content_type.as_deref().unwrap_or("application/octet-stream");
     headers.insert(
         axum::http::header::CONTENT_TYPE,
-        HeaderValue::from_str(&attachment.mime_type)
+        HeaderValue::from_str(content_type)
             .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
 

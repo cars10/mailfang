@@ -19,11 +19,10 @@ CREATE TABLE attachments (
     id TEXT PRIMARY KEY NOT NULL,
     email_id TEXT NOT NULL,
     filename TEXT,
-    mime_type TEXT NOT NULL,
+    content_type TEXT,
     data BLOB NOT NULL,
     size INTEGER NOT NULL,
     content_id TEXT,
-    headers TEXT,
     disposition TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (email_id) REFERENCES emails (id) ON DELETE CASCADE

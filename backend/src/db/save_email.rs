@@ -190,14 +190,10 @@ fn save_attachments(
             id: attachment_id.clone(),
             email_id: email_id.to_string(),
             filename: attachment.filename.clone(),
-            mime_type: attachment.mime_type.clone(),
+            content_type: attachment.content_type.clone(),
             data: attachment.data.clone(),
             size: attachment.data.len() as i32,
             content_id: attachment.content_id.clone(),
-            headers: attachment
-                .headers
-                .as_ref()
-                .map(|h| serde_json::to_string(h).unwrap()),
             disposition: attachment.disposition.clone(),
             created_at: now,
         };

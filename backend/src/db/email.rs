@@ -34,10 +34,9 @@ pub fn get_email(
             .map(|att| AttachmentRecord {
                 id: att.id,
                 filename: att.filename,
-                mime_type: att.mime_type,
+                content_type: att.content_type,
                 size: att.size,
                 content_id: att.content_id,
-                headers: att.headers,
                 disposition: att.disposition,
                 created_at: att.created_at,
             })

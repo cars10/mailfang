@@ -41,11 +41,10 @@ pub struct Attachment {
     pub id: String,
     pub email_id: String,
     pub filename: Option<String>,
-    pub mime_type: String,
+    pub content_type: Option<String>,
     pub data: Vec<u8>,
     pub size: i32,
     pub content_id: Option<String>,
-    pub headers: Option<String>,
     pub disposition: Option<String>,
     pub created_at: NaiveDateTime,
 }
