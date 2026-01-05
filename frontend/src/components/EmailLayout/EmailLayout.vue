@@ -25,6 +25,7 @@
   const emails = ref<EmailListRecord[]>([])
   const counts = ref<EmailCounts>({
     inbox: 0,
+    unread: 0,
     recipients: [],
   })
   const loading = ref(false)
@@ -120,7 +121,10 @@
 
   const handleEmailRead = (email: EmailListRecord) => {
     const index = emails.value.findIndex(e => e.id === email.id)
-    if (index !== -1) emails.value[index] = email
+    if (index !== -1) {
+      counts.value.unread = Math.max(0, counts.value.unread - 1)
+      emails.value[index] = email
+    }
   }
 
   const handleEmailDeleted = (emailId: string) => {
@@ -174,5 +178,17 @@
       searchStore.query = ''
       fetchInitialMails()
     }
+  )
+
+  watch(
+    () => counts.value.unread,
+    (unread) => {
+      if (unread > 0) {
+        document.title = `(${unread}) MailFang`
+      } else {
+        document.title = 'MailFang'
+      }
+    },
+    { immediate: true }
   )
 </script>

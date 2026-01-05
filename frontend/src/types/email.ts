@@ -42,6 +42,7 @@ export interface RecipientCount {
 
 export interface EmailCounts {
   inbox: number
+  unread: number
   recipients: RecipientCount[]
 }
 
