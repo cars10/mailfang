@@ -48,7 +48,7 @@
                   {{ mail.subject || '(No Subject)' }}
                 </div>
                 <div
-                  class="flex items-center gap-1 text-sm text-gray-500 text-nowrap font-mono"
+                  class="flex items-center gap-1 text-sm text-gray-500 text-nowrap"
                 >
                   <PaperClipIcon
                     v-if="mail.has_attachments"

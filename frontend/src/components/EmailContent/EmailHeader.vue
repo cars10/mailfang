@@ -1,133 +1,94 @@
 <template>
-  <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
-    <div class="flex items-start justify-between gap-2 mb-2">
-      <h1 class="text-2xl text-gray-900">
+  <div class="px-6 py-4">
+    <div class="flex justify-between gap-2 mb-2">
+      <h1 class="text-3xl text-gray-900 font-weight-semibold">
         {{ email.subject || '(No Subject)' }}
       </h1>
 
-      <div class="flex flex-row gap-1">
-        <button
-          class="btn btn--icon"
-          title="Download"
-          :disabled="loadingDownload"
-          @click="handleDownload"
-        >
-          <ArrowDownTrayIcon class="h-5" />
-        </button>
-
-        <button
-          class="btn btn--icon"
-          title="Delete"
-          :disabled="loadingDelete"
-          @click="handleDelete"
-        >
-          <TrashIcon class="h-5" />
-        </button>
+      <div class="text-gray-500 flex align-center text-nowrap py-2">
+        {{ formatDate(email.created_at) }}
       </div>
     </div>
 
-    <div class="flex flex-row gap-2 justify-between">
-      <div>
-        <div class="grid grid-cols-[auto_1fr] gap-x-2">
-          <template v-if="email.from">
-            <div
-              class="flex items-center text-gray-500 select-text text-nowrap py-1"
-            >
-              From:
-            </div>
-            <div class="text-gray-600 select-text w-fit">
-              <CopyBadge :text="email.from" />
-            </div>
-          </template>
-
-          <template v-if="email.recipients.length > 0">
-            <div
-              class="flex items-start text-gray-500 select-text text-nowrap py-1"
-            >
-              To:
-            </div>
-            <div class="w-fit">
-              <div
-                v-for="recipient in email.recipients"
-                :key="recipient"
-                class="text-gray-600 select-text w-fit"
-              >
-                <CopyBadge :text="recipient" />
-              </div>
-            </div>
-          </template>
-
-          <template v-if="email.headers?.Cc">
-            <div
-              class="flex items-start text-gray-500 select-text text-nowrap py-1"
-            >
-              CC:
-            </div>
-            <div class="w-fit">
-              <div
-                v-for="cc in email.headers?.Cc"
-                :key="cc"
-                class="text-gray-600 select-text w-fit"
-              >
-                <CopyBadge :text="cc" />
-              </div>
-            </div>
-          </template>
-
-          <template v-if="email.headers?.Bcc">
-            <div
-              class="flex items-start text-gray-500 select-text text-nowrap py-1"
-            >
-              BCC:
-            </div>
-            <div class="w-fit">
-              <div
-                v-for="bcc in email.headers?.Bcc"
-                :key="bcc"
-                class="text-gray-600 select-text w-fit"
-              >
-                <CopyBadge :text="bcc" />
-              </div>
-            </div>
-          </template>
-
-          <template v-if="email.headers?.['Reply-To']">
-            <div
-              class="flex items-start text-gray-500 select-text text-nowrap py-1"
-            >
-              Reply-To:
-            </div>
-            <div class="w-fit">
-              <div
-                v-for="replyTo in email.headers?.['Reply-To']"
-                :key="replyTo"
-                class="text-gray-600 select-text w-fit"
-              >
-                <CopyBadge :text="replyTo" />
-              </div>
-            </div>
-          </template>
+    <div class="grid grid-cols-[auto_1fr] gap-x-2">
+      <template v-if="email.from">
+        <div
+          class="flex items-center text-gray-500 select-text text-nowrap py-1"
+        >
+          From:
         </div>
-      </div>
+        <div class="text-gray-600 select-text w-fit">
+          <CopyBadge :text="email.from" />
+        </div>
+      </template>
 
-      <div>
-        <div class="grid grid-cols-[auto_1fr] gap-x-2">
-          <div class="flex items-center text-gray-500 select-text py-1">
-            Date:
-          </div>
-          <div class="text-gray-600 select-text w-fit">
-            <CopyBadge :text="formatFullDate(email.date || email.created_at)" />
-          </div>
-
-          <div class="flex items-start text-gray-500 select-text py-1">
-            Size:
-          </div>
-          <div class="text-gray-600 select-text w-fit flex flex-col">
-            <CopyBadge :text="formatSize(email.size)" />
-            <CopyBadge :text="`${email.size} bytes`" />
+      <template v-if="email.recipients.length > 0">
+        <div
+          class="flex items-start text-gray-500 select-text text-nowrap py-1"
+        >
+          To:
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="recipient in email.recipients"
+            :key="recipient"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="recipient" />
           </div>
         </div>
-      </div>
+      </template>
+
+      <template v-if="email.headers?.Cc">
+        <div
+          class="flex items-start text-gray-500 select-text text-nowrap py-1"
+        >
+          CC:
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="cc in email.headers?.Cc"
+            :key="cc"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="cc" />
+          </div>
+        </div>
+      </template>
+
+      <template v-if="email.headers?.Bcc">
+        <div
+          class="flex items-start text-gray-500 select-text text-nowrap py-1"
+        >
+          BCC:
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="bcc in email.headers?.Bcc"
+            :key="bcc"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="bcc" />
+          </div>
+        </div>
+      </template>
+
+      <template v-if="email.headers?.['Reply-To']">
+        <div
+          class="flex items-start text-gray-500 select-text text-nowrap py-1"
+        >
+          Reply-To:
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="replyTo in email.headers?.['Reply-To']"
+            :key="replyTo"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="replyTo" />
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -194,8 +155,19 @@
     return prettyBytes(size)
   }
 
-  const formatFullDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString()
+  const formatDate = (dateString: string) => {
+    const today = new Date()
+    const mailDate = new Date(dateString)
+
+    const isToday =
+      mailDate.getDate() === today.getDate() &&
+      mailDate.getMonth() === today.getMonth() &&
+      mailDate.getFullYear() === today.getFullYear()
+
+    if (isToday) {
+      return mailDate.toLocaleTimeString()
+    } else {
+      return mailDate.toLocaleDateString()
+    }
   }
 </script>

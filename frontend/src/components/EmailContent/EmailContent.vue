@@ -5,16 +5,8 @@
       class="flex flex-col grow max-w-full"
     >
       <div
-        class="flex flex-row border-b border-gray-200 items-center justify-between gap-4 p-2"
+        class="flex flex-row border-b border-gray-300 items-center justify-between gap-4 p-2"
       >
-        <div class="flex flex-row gap-4">
-          <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
-          <Toggle
-            v-model="mailLayoutStore.allowRemoteContent"
-            label="Remote content"
-            small
-          />
-        </div>
         <div class="flex flex-row gap-1">
           <ButtonGroup
             v-model="mailLayoutStore.screenSize"
@@ -27,6 +19,15 @@
           >
             <ArrowTopRightOnSquareIcon class="h-4 w-4" />
           </a>
+        </div>
+
+        <div class="flex flex-row gap-4">
+          <Toggle
+            v-model="mailLayoutStore.allowRemoteContent"
+            label="Remote content"
+            small
+          />
+          <ZoomControls v-model="mailLayoutStore.mailContentZoom" />
         </div>
       </div>
 

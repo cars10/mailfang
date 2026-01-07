@@ -11,11 +11,11 @@
     <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
       <EmailHeader :email="email" />
 
-      <EmailAttachments v-if="email.attachments.length > 0" :email="email" />
-
       <Tabs v-model="viewMode" :tabs="tabs" />
 
       <EmailContent :email="email" :view-mode="viewMode" />
+
+      <EmailFooter :email="email" />
     </div>
   </div>
 </template>
@@ -29,9 +29,9 @@
   import type { EmailRecord } from '@/types/email'
   import Tabs from '@/components/shared/Tabs/Tabs.vue'
   import EmailHeader from './EmailHeader.vue'
-  import EmailAttachments from './EmailAttachments.vue'
   import EmailContent from './EmailContent.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
+  import EmailFooter from './EmailFooter.vue'
 
   const route = useRoute()
   const mailId = ref<string>(route.params.id as string)

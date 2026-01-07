@@ -2,7 +2,7 @@
   <div class="flex items-center gap-2 py-2">
     <template v-for="tab in tabs" :key="tab.id">
       <button
-        class="focus:outline-none focus:border-primary px-4 py-2 text-sm font-medium transition-colors border-b-2 cursor-pointer flex items-center gap-2"
+        class="focus:outline-none focus:border-primary px-4 py-2 text-sm transition-colors border-b-2 cursor-pointer flex items-center gap-2"
         :class="tabClass(tab.id)"
         @click="$emit('update:modelValue', tab.id)"
       >
