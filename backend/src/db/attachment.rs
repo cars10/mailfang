@@ -1,25 +1,26 @@
 use diesel::prelude::*;
 
 use crate::{
-    db::{AttachmentContent, DbConnection},
+    compression,
+    db::{AttachmentContent, DbConnection, DbError},
     models::Attachment,
     schema,
-    web::error::DieselError,
 };
 
 pub fn get_attachment(
     conn: &mut DbConnection,
     attachment_id: &str,
-) -> Result<Option<AttachmentContent>, DieselError> {
+) -> Result<AttachmentContent, DbError> {
     let attachment = schema::attachments::table
         .filter(schema::attachments::id.eq(attachment_id))
-        .first::<Attachment>(conn)
-        .optional()?;
+        .first::<Attachment>(conn)?;
 
-    Ok(attachment.map(|att| AttachmentContent {
-        id: att.id,
-        filename: att.filename,
-        content_type: att.content_type,
-        data: att.data,
-    }))
+    let data = compression::decompress(&attachment.compressed_data)?;
+
+    Ok(AttachmentContent {
+        id: attachment.id,
+        filename: attachment.filename,
+        content_type: attachment.content_type,
+        data,
+    })
 }

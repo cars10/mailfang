@@ -161,7 +161,7 @@ fn handle_new_email(
                 })
                 .await;
 
-                if let Ok(Ok(Some(email_record))) = email_result {
+                if let Ok(Ok(email_record)) = email_result {
                     let recipients = email_record.recipients.clone();
                     let email_list_record: db::EmailListRecord = email_record.into();
                     broadcast

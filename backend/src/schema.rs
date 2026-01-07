@@ -9,7 +9,7 @@ diesel::table! {
         headers -> Nullable<Text>,
         from -> Text,
         size -> Integer,
-        raw_data -> Text,
+        compressed_data -> Binary,
         body_text -> Nullable<Text>,
         body_html -> Nullable<Text>,
         rendered_body_html -> Nullable<Text>,
@@ -25,7 +25,7 @@ diesel::table! {
         email_id -> Text,
         filename -> Nullable<Text>,
         content_type -> Nullable<Text>,
-        data -> Binary,
+        compressed_data -> Binary,
         size -> Integer,
         content_id -> Nullable<Text>,
         disposition -> Nullable<Text>,
@@ -51,9 +51,4 @@ diesel::joinable!(attachments -> emails (email_id));
 diesel::joinable!(email_recipients -> emails (email_id));
 diesel::joinable!(email_recipients -> recipients (recipient_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    emails,
-    attachments,
-    recipients,
-    email_recipients,
-);
+diesel::allow_tables_to_appear_in_same_query!(emails, attachments, recipients, email_recipients,);

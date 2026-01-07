@@ -64,7 +64,11 @@ pub async fn get_email(
     Path(id): Path<String>,
 ) -> Result<Json<crate::db::EmailRecord>, WebError> {
     let mut conn = state.pool.get()?;
-    let mut email = db::email::get_email(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let mut email = db::email::get_email(&mut conn, &id)
+        .map_err(|e| match e {
+            db::DbError::Diesel(diesel::result::Error::NotFound) => WebError::NotFound,
+            _ => WebError::from(e),
+        })?;
 
     if !email.read {
         db::email::mark_email_read(&mut conn, &id, true)?;
@@ -118,7 +122,11 @@ pub async fn get_raw_email(
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let raw_data = db::email::get_raw_data(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let raw_data = db::email::get_raw_data(&mut conn, &id)
+        .map_err(|e| match e {
+            db::DbError::Diesel(diesel::result::Error::NotFound) => WebError::NotFound,
+            _ => WebError::from(e),
+        })?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -142,7 +150,11 @@ pub async fn get_rendered_email(
     Query(params): Query<RenderedQueryParams>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let rendered_html = db::email::get_rendered_data(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let rendered_html = db::email::get_rendered_data(&mut conn, &id)
+        .map_err(|e| match e {
+            db::DbError::Diesel(diesel::result::Error::NotFound) => WebError::NotFound,
+            _ => WebError::from(e),
+        })?;
 
     // Default to blocking remote content unless explicitly allowed
     let allow_remote_content = params.allow_remote_content.unwrap_or(false);
@@ -166,7 +178,11 @@ pub async fn get_attachment(
     Path(id): Path<String>,
 ) -> Result<Response, WebError> {
     let mut conn = state.pool.get()?;
-    let attachment = db::attachment::get_attachment(&mut conn, &id)?.ok_or(WebError::NotFound)?;
+    let attachment = db::attachment::get_attachment(&mut conn, &id)
+        .map_err(|e| match e {
+            db::DbError::Diesel(diesel::result::Error::NotFound) => WebError::NotFound,
+            _ => WebError::from(e),
+        })?;
 
     let mut headers = HeaderMap::new();
     let content_type = attachment.content_type.as_deref().unwrap_or("application/octet-stream");

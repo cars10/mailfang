@@ -897,6 +897,7 @@ dependencies = [
  "ctrlc",
  "diesel",
  "diesel_migrations",
+ "flate2",
  "futures",
  "futures-util",
  "hex",

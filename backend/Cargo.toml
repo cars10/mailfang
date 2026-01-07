@@ -36,6 +36,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "chrono"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 ctrlc = "3.5.1"
+flate2 = "1.0"
 
 [profile.release]
 lto = true

@@ -1,21 +1,21 @@
 use crate::{
-    db::DbConnection,
+    compression,
+    db::{DbConnection, DbError},
     models::{Attachment, Email},
     schema, smtp,
-    web::error::DieselError,
 };
 use chrono::Utc;
 use diesel::prelude::*;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<String, DieselError> {
-    conn.transaction::<_, DieselError, _>(|conn| {
+pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<String, DbError> {
+    conn.transaction::<_, DbError, _>(|conn| {
         let attachment_ids = generate_attachment_ids(&message.attachments);
         let rendered_body_html =
             process_html_body(&message.body_html, &message.attachments, &attachment_ids);
         let now = Utc::now().naive_utc();
-        let new_email = create_email_record(message, rendered_body_html, now);
+        let new_email = create_email_record(message, rendered_body_html, now)?;
 
         diesel::insert_into(schema::emails::table)
             .values(&new_email)
@@ -105,8 +105,9 @@ fn create_email_record(
     message: &smtp::Email,
     rendered_body_html: Option<String>,
     now: chrono::NaiveDateTime,
-) -> Email {
-    Email {
+) -> Result<Email, DbError> {
+    let compressed_data = compression::compress(message.data.as_bytes())?;
+    Ok(Email {
         id: message.id.to_string(),
         message_id: message.message_id.clone(),
         subject: message.subject.clone(),
@@ -117,21 +118,21 @@ fn create_email_record(
             .map(|h| serde_json::to_string(h).unwrap()),
         from: message.from.clone(),
         size: message.size as i32,
-        raw_data: message.data.clone(),
+        compressed_data,
         body_text: Some(message.body_text.clone()),
         body_html: Some(message.body_html.clone()),
         rendered_body_html,
         read: false,
         has_attachments: !message.attachments.is_empty(),
         created_at: now,
-    }
+    })
 }
 
 fn save_recipients(
     conn: &mut DbConnection,
     email_id: &str,
     recipient_emails: &[String],
-) -> Result<(), DieselError> {
+) -> Result<(), DbError> {
     for recipient_email in recipient_emails {
         if recipient_email.trim().is_empty() {
             continue;
@@ -144,7 +145,7 @@ fn save_recipients(
     Ok(())
 }
 
-fn get_or_create_recipient(conn: &mut DbConnection, email: &str) -> Result<String, DieselError> {
+fn get_or_create_recipient(conn: &mut DbConnection, email: &str) -> Result<String, DbError> {
     match schema::recipients::table
         .filter(schema::recipients::email.eq(email))
         .select(schema::recipients::id)
@@ -168,7 +169,7 @@ fn link_recipient_to_email(
     conn: &mut DbConnection,
     email_id: &str,
     recipient_id: &str,
-) -> Result<(), DieselError> {
+) -> Result<(), DbError> {
     diesel::insert_into(schema::email_recipients::table)
         .values((
             schema::email_recipients::email_id.eq(email_id),
@@ -184,14 +185,16 @@ fn save_attachments(
     attachments: &[smtp::EmailAttachment],
     attachment_ids: &[String],
     now: chrono::NaiveDateTime,
-) -> Result<(), DieselError> {
+) -> Result<(), DbError> {
     for (attachment, attachment_id) in attachments.iter().zip(attachment_ids.iter()) {
+        let compressed_data = compression::compress(&attachment.data)?;
+
         let new_attachment = Attachment {
             id: attachment_id.clone(),
             email_id: email_id.to_string(),
             filename: attachment.filename.clone(),
             content_type: attachment.content_type.clone(),
-            data: attachment.data.clone(),
+            compressed_data,
             size: attachment.data.len() as i32,
             content_id: attachment.content_id.clone(),
             disposition: attachment.disposition.clone(),

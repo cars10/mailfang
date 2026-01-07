@@ -7,6 +7,51 @@ use diesel::r2d2::{self, ConnectionManager};
 use serde::Serialize;
 use std::sync::Arc;
 
+#[derive(Debug)]
+pub enum DbError {
+    Diesel(DieselError),
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for DbError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DbError::Diesel(e) => write!(f, "Database error: {}", e),
+            DbError::Io(e) => write!(f, "IO error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for DbError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DbError::Diesel(e) => Some(e),
+            DbError::Io(e) => Some(e),
+        }
+    }
+}
+
+impl From<DieselError> for DbError {
+    fn from(err: DieselError) -> Self {
+        DbError::Diesel(err)
+    }
+}
+
+impl From<std::io::Error> for DbError {
+    fn from(err: std::io::Error) -> Self {
+        DbError::Io(err)
+    }
+}
+
+impl From<DbError> for crate::web::error::WebError {
+    fn from(err: DbError) -> Self {
+        match err {
+            DbError::Diesel(e) => crate::web::error::WebError::from(e),
+            DbError::Io(e) => crate::web::error::WebError::from(e),
+        }
+    }
+}
+
 pub mod attachment;
 pub mod counts;
 pub mod email;
