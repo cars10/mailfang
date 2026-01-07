@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full bg-white">
+  <div class="flex flex-col h-full">
     <div v-if="loading" class="flex items-center justify-center h-full">
       <Spinner size="6" />
     </div>
@@ -8,7 +8,10 @@
       <div class="text-gray-500">{{ error }}</div>
     </div>
 
-    <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
+    <div
+      v-else-if="email"
+      class="flex flex-col h-full overflow-y-auto bg-gray-50"
+    >
       <EmailHeader :email="email" />
 
       <Tabs v-model="viewMode" :tabs="tabs" />

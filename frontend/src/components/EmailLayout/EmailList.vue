@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white border-r border-gray-300">
+  <div class="shadow-md z-20">
     <vue-resizable
       :active="['r']"
       :min-width="350"
@@ -9,7 +9,7 @@
       @dblclick="handleDoubleClick"
       @resize:end="handleResizeEnd"
     >
-      <div class="p-4 border-b border-gray-300">
+      <div class="p-4">
         <TextInput
           v-model="searchStore.query"
           placeholder="Search"
@@ -17,7 +17,7 @@
         />
       </div>
 
-      <div class="overflow-y-auto">
+      <div class="overflow-y-auto px-4 flex flex-col gap-2">
         <div
           v-if="loading && emails.length === 0"
           class="flex items-center justify-center p-8"
@@ -36,7 +36,7 @@
           <div
             v-for="mail in emails"
             :key="mail.id"
-            :class="`border-b border-b-gray-300 border-l-4 ${route.params.id === mail.id ? 'border-l-primary bg-gray-50' : 'border-l-transparent'} p-4 gap-4 hover:cursor-pointer hover:bg-gray-100 w-full`"
+            :class="`border-l-4 ${route.params.id === mail.id ? 'border-l-primary bg-gray-50' : 'border-l-transparent'} p-2 gap-4 hover:cursor-pointer hover:bg-gray-100 w-full rounded-sm`"
             @click="openMail(mail.id)"
           >
             <div class="flex flex-col grow">

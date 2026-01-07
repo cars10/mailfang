@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 border-t border-gray-300">
+  <div class="p-4 shadow-md">
     <EmailAttachments
       v-if="email.attachments.length > 0"
       :email="email"

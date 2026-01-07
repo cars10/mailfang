@@ -8,7 +8,7 @@
       @click="toggle"
     >
       <span
-        class="inline-block transform rounded-full bg-white transition-transform"
+        class="inline-block transform rounded-full bg-white transition-transform shadow-sm"
         :class="[
           sizeClasses.knob,
           modelValue ? sizeClasses.translateOn : sizeClasses.translateOff,

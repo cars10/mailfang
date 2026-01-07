@@ -5,7 +5,7 @@
       class="flex flex-col grow max-w-full"
     >
       <div
-        class="flex flex-row border-b border-gray-300 items-center justify-between gap-4 p-2"
+        class="flex flex-row items-center justify-between gap-4 p-4 shadow-md"
       >
         <div class="flex flex-row gap-1">
           <ButtonGroup

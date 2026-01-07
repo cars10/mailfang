@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-100 border-r border-gray-300 shrink-0">
+  <div class="bg-gray-100 shrink-0">
     <vue-resizable
       :active="['r']"
       :min-width="64"
