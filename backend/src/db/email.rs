@@ -69,17 +69,17 @@ pub fn mark_email_read(
 }
 
 pub fn delete_email(conn: &mut DbConnection, email_id: &str) -> Result<usize, DbError> {
-    conn.transaction::<_, DbError, _>(|conn| {
-        let affected =
-            diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
-                .execute(conn)?;
+    let affected = conn.transaction::<_, DbError, _>(|conn| {
+        diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
+            .execute(conn)
+            .map_err(DbError::from)
+    })?;
 
-        if affected > 0 {
-            vacuum_database(conn).map_err(DbError::from)?;
-        }
+    if affected > 0 {
+        vacuum_database(conn).map_err(DbError::from)?;
+    }
 
-        Ok(affected)
-    })
+    Ok(affected)
 }
 
 pub fn get_rendered_data(conn: &mut DbConnection, email_id: &str) -> Result<String, DbError> {

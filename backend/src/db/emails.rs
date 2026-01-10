@@ -154,13 +154,13 @@ pub fn get_emails_by_recipient(
 }
 
 pub fn delete_all_emails(conn: &mut DbConnection) -> Result<usize, DieselError> {
-    conn.transaction::<_, DieselError, _>(|conn| {
-        let affected = diesel::delete(schema::emails::table).execute(conn)?;
+    let affected = conn.transaction::<_, DieselError, _>(|conn| {
+        diesel::delete(schema::emails::table).execute(conn)
+    })?;
 
-        if affected > 0 {
-            vacuum_database(conn)?;
-        }
+    if affected > 0 {
+        vacuum_database(conn)?;
+    }
 
-        Ok(affected)
-    })
+    Ok(affected)
 }
