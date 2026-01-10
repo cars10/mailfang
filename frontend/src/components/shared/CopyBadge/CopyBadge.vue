@@ -2,7 +2,7 @@
   <div
     v-if="text.length > 0"
     title="Click to copy"
-    class="group hover:bg-gray-100 py-1 px-2 rounded-xl cursor-pointer flex items-center gap-1 grow-0 w-fit"
+    class="group hover:bg-gray-100 py-1 px-2 rounded-xl cursor-pointer flex items-center gap-1 grow-0 w-fit break-all"
     @click="handleCopy"
   >
     {{ text }}

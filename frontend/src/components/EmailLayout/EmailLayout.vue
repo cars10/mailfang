@@ -182,7 +182,7 @@
 
   watch(
     () => counts.value.unread,
-    (unread) => {
+    unread => {
       if (unread > 0) {
         document.title = `(${unread}) MailFang`
       } else {
