@@ -10,12 +10,10 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-[auto_1fr] gap-x-2">
+    <div class="grid grid-cols-[max-content_1fr] gap-x-2">
       <template v-if="email.from">
-        <div
-          class="flex items-center text-gray-500 select-text text-nowrap py-1"
-        >
-          From:
+        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          From
         </div>
         <div class="text-gray-600 select-text w-fit">
           <CopyBadge :text="email.from" />
@@ -23,10 +21,8 @@
       </template>
 
       <template v-if="email.recipients.length > 0">
-        <div
-          class="flex items-start text-gray-500 select-text text-nowrap py-1"
-        >
-          To:
+        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          To
         </div>
         <div class="w-fit">
           <div
