@@ -47,8 +47,6 @@ export function parseAndDecodeAddresses(headerValue: string): string[] {
   return parseAddresses(headerValue).map(decodeAddress)
 }
 
-export function parseAndDecodeHeaderValues(
-  headerValues: string[]
-): string[] {
+export function parseAndDecodeHeaderValues(headerValues: string[]): string[] {
   return headerValues.flatMap(parseAndDecodeAddresses)
 }

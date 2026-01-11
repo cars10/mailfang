@@ -1,51 +1,56 @@
 # MailFang
 
-MailFang is the smtp server and webui for email testing that you have been waiting for!
+MailFang is the SMTP server and web interface for email testing that you have been waiting for!
 
 ## About
 
-Use MailFang locally during development, deploy it in a sandbox or use it in your staging environment instead of sending real emails.
+Use MailFang locally during development, deploy it in a sandbox, or use it in your staging environment instead of sending real emails.
 
 ### Features
 
-* Easy deployment via docker or self-contained single file binary
-* View rendered email html or text content, inspect headers and raw email
+* Easy deployment via docker or single file binary
+* View rendered email content, inspect headers, attachments and raw email
 * Check how your email reacts when users block remote content loading
-* View email in mobile, tablet and desktop layout
-* All data is saved in a local sqlite database or simply in-memory
-* Connect to SMTP via `PLAIN`, `LOGIN`, `CRAM-MD5` auth or without authorization
-* ... and much more 
-
+* Preview emails in mobile, tablet, and desktop layouts
+* Data is stored in sqlite database - file based or in-memory
+* SMTP auth supports: `PLAIN`, `LOGIN`, `CRAM-MD5`, or no authentication
+* Realtime email updates in the webui
+* ... and much more
 
 ## Usage
 
 ### Docker
 
-Use the [existing image](https://hub.docker.com/r/cars10/mailfang):
+Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker hub:
 
 ```bash
 docker run --name mailfang \
            -p 3000:3000 \
            -p 2525:2525 \
            -d cars10/mailfang
+
+# or use the image from ghcr.io: ghcr.io/cars10/mailfang
 ```
 
-Default ports used by mailfang:
+Default ports:
 
-* `3000` - Webui
+* `3000` - Web UI
 * `2525` - SMTP Server
+
 
 ### Binary
 
 1. Download the latest binary from the [releases page](https://github.com/cars10/mailfang/releases)
-2. Set executable permissions `sudo chmod +x ./mailfang`
-3. Run mailfang `./mailfang`
+2. Set executable permissions: `chmod +x ./mailfang`
+3. Run MailFang: `./mailfang`
+
+You can view all available configuration options by running `./mailfang --help`.
 
 ## Configuration
 
-Hint: You can run MailFang with `--help` to get the same information.
+You can configure MailFang via command-line arguments or environment variables. When running in docker, environment variables are recommended.
 
-When running in docker the easiest way to configure MailFang to use the environment variables.
+### Available Options
 
 ```bash
 --smtp-host <SMTP_HOST>
@@ -75,7 +80,9 @@ When running in docker the easiest way to configure MailFang to use the environm
     [default: sqlite::memory:]
 ```
 
-Full configuration example:
+### Configuration Example
+
+Persistent storage with smtp authentication:
 
 ```bash
 mkdir -p mailfang/data
@@ -89,6 +96,25 @@ docker run --name mailfang \
            -v ./mailfang/data:/data \
            cars10/mailfang
 ```
+
+### Database Persistence
+
+By default, MailFang uses an in-memory database. To persist emails between restarts configure a database url:
+
+* Docker: Use `DATABASE_URL=sqlite:///data/mailfang.db` and mount a volume to `/data`
+* Binary: Use `--database-url sqlite:///path/to/mailfang.db` or set `DATABASE_URL=sqlite:///path/to/mailfang.db`
+
+## Development
+
+### Prerequisites
+
+* Docker and Docker Compose
+* [Rust](https://rustup.rs/)
+* Node.js
+
+### Running
+
+Run `make dev` to start the frontend and backend, access the frontend on `http://localhost:5173`.
 
 ## License
 
