@@ -191,7 +191,39 @@ async fn handle_connection(
                         }
                     }
                     Err(e) => {
-                        let _ = framed.send(format!("500 {}", e)).await;
+                        let response = match &e {
+                            SmtpError::Protocol(msg) => {
+                                if msg.len() >= 3 && msg.chars().take(3).all(|c| c.is_ascii_digit()) {
+                                    msg.to_string()
+                                } else {
+                                    format!("500 {}", e)
+                                }
+                            }
+                            _ => format!("500 {}", e),
+                        };
+                        
+                        if response.starts_with("530") {
+                            error!(
+                                component = "smtp",
+                                peer = %peer,
+                                "Authentication required but not provided"
+                            );
+                        } else if response.starts_with("535") {
+                            error!(
+                                component = "smtp",
+                                peer = %peer,
+                                "Authentication failed"
+                            );
+                        } else {
+                            error!(
+                                component = "smtp",
+                                peer = %peer,
+                                error = %e,
+                                "Protocol error"
+                            );
+                        }
+                        
+                        let _ = framed.send(response).await;
                         // Don't break on error, continue processing
                     }
                 }
@@ -331,6 +363,11 @@ impl Session {
                             self.authenticated = true;
                             Ok(vec!["235 Authentication successful".into()])
                         } else {
+                            error!(
+                                component = "smtp",
+                                peer = %self.peer,
+                                "AUTH PLAIN authentication failed"
+                            );
                             Ok(vec!["535 Authentication failed".into()])
                         }
                     } else {
@@ -445,6 +482,11 @@ impl Session {
                     self.authenticated = true;
                     Ok(vec!["235 Authentication successful".into()])
                 } else {
+                    error!(
+                        component = "smtp",
+                        peer = %self.peer,
+                        "AUTH PLAIN authentication failed"
+                    );
                     self.state = SessionState::Command;
                     self.auth_state = AuthState::None;
                     Ok(vec!["535 Authentication failed".into()])
@@ -454,6 +496,11 @@ impl Session {
                 let username = match base64_decode(line) {
                     Ok(u) => u,
                     Err(_) => {
+                        error!(
+                            component = "smtp",
+                            peer = %self.peer,
+                            "AUTH LOGIN failed: invalid username encoding"
+                        );
                         self.state = SessionState::Command;
                         self.auth_state = AuthState::None;
                         return Ok(vec!["535 Authentication failed".into()]);
@@ -467,6 +514,11 @@ impl Session {
                 let password = match base64_decode(line) {
                     Ok(p) => p,
                     Err(_) => {
+                        error!(
+                            component = "smtp",
+                            peer = %self.peer,
+                            "AUTH LOGIN failed: invalid password encoding"
+                        );
                         self.state = SessionState::Command;
                         self.auth_state = AuthState::None;
                         return Ok(vec!["535 Authentication failed".into()]);
@@ -478,6 +530,11 @@ impl Session {
                     self.authenticated = true;
                     Ok(vec!["235 Authentication successful".into()])
                 } else {
+                    error!(
+                        component = "smtp",
+                        peer = %self.peer,
+                        "AUTH LOGIN authentication failed"
+                    );
                     self.state = SessionState::Command;
                     self.auth_state = AuthState::None;
                     Ok(vec!["535 Authentication failed".into()])
@@ -490,6 +547,11 @@ impl Session {
                     self.authenticated = true;
                     Ok(vec!["235 Authentication successful".into()])
                 } else {
+                    error!(
+                        component = "smtp",
+                        peer = %self.peer,
+                        "AUTH CRAM-MD5 authentication failed"
+                    );
                     self.state = SessionState::Command;
                     self.auth_state = AuthState::None;
                     Ok(vec!["535 Authentication failed".into()])
