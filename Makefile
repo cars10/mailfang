@@ -32,7 +32,10 @@ build_prod:
 	strip backend/target/release/mailfang
 
 build_docker_prod:
-	docker build -t mailfang:latest .
+	docker build -t cars10/mailfang:latest .
 
 run_docker_prod:
-	docker run -p 3000:3000 -p 2525:2525 mailfang:latest
+	docker run -p 3000:3000 -p 2525:2525 cars10/mailfang:latest
+
+push_docker_prod:
+	docker push cars10/mailfang:latest

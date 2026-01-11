@@ -46,23 +46,21 @@ RUN apk add --no-cache \
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser
 
-WORKDIR /app
-
-COPY --from=backend-builder /app/backend/target/release/mailfang /app/mailfang
+COPY --from=backend-builder /app/backend/target/release/mailfang /usr/bin/mailfang
 
 RUN mkdir -p /data && \
     touch /data/mailfang.db && \
-    chown -R appuser:appuser /app /data
+    chown -R appuser:appuser /data
+
+WORKDIR /data
 
 USER appuser
 
-EXPOSE 3000 2525
-
-ENV DATABASE_URL=sqlite:///data/mailfang.db
+ENV DATABASE_URL=sqlite::memory:
 ENV WEB_PORT=3000
 ENV SMTP_PORT=2525
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=1s --retries=5 \
     CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["/app/mailfang"]
+CMD ["mailfang"]
