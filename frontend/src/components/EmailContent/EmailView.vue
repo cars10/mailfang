@@ -8,10 +8,7 @@
       <div class="text-gray-500">{{ error }}</div>
     </div>
 
-    <div
-      v-else-if="email"
-      class="flex flex-col h-full overflow-y-auto bg-gray-50"
-    >
+    <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
       <EmailHeader :email="email" />
 
       <Tabs v-model="viewMode" :tabs="tabs" />
