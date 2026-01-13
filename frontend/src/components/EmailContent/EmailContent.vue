@@ -68,6 +68,30 @@
     </div>
 
     <EmailSmtpHeaders v-if="viewMode === 'headers'" :email="email" />
+
+    <div v-if="viewMode === 'envelope'" class="p-6">
+      <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-3">
+        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          MAIL FROM
+        </div>
+        <div class="text-gray-600 select-text w-fit">
+          <CopyBadge :text="email.from || '(empty)'" />
+        </div>
+
+        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          RCPT TO
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="recipient in email.recipients"
+            :key="recipient"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="recipient" />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -89,6 +113,7 @@
   import Toggle from '@/components/shared/Toggle/Toggle.vue'
   import ButtonGroup from '@/components/shared/ButtonGroup/ButtonGroup.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
+  import CopyBadge from '@/components/shared/CopyBadge/CopyBadge.vue'
 
   const props = defineProps<{
     email: EmailRecord

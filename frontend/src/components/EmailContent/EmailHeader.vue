@@ -13,102 +13,75 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-[1fr_auto] gap-8">
-      <div class="grid grid-cols-[max-content_1fr] gap-x-2">
-        <template v-if="displayFrom">
-          <div class="text-gray-500 select-text text-right text-nowrap py-1">
-            From
-          </div>
-          <div class="text-gray-600 select-text w-fit">
-            <CopyBadge :text="displayFrom" />
-          </div>
-        </template>
-
-        <template v-if="displayTo.length > 0">
-          <div class="text-gray-500 select-text text-right text-nowrap py-1">
-            To
-          </div>
-          <div class="w-fit">
-            <div
-              v-for="recipient in displayTo"
-              :key="recipient"
-              class="text-gray-600 select-text w-fit"
-            >
-              <CopyBadge :text="recipient" />
-            </div>
-          </div>
-        </template>
-
-        <template v-if="displayCc.length > 0">
-          <div class="text-right text-gray-500 select-text text-nowrap py-1">
-            CC
-          </div>
-          <div class="w-fit">
-            <div
-              v-for="cc in displayCc"
-              :key="cc"
-              class="text-gray-600 select-text w-fit"
-            >
-              <CopyBadge :text="cc" />
-            </div>
-          </div>
-        </template>
-
-        <template v-if="displayBcc.length > 0">
-          <div class="text-right text-gray-500 select-text text-nowrap py-1">
-            BCC
-          </div>
-          <div class="w-fit">
-            <div
-              v-for="bcc in displayBcc"
-              :key="bcc"
-              class="text-gray-600 select-text w-fit"
-            >
-              <CopyBadge :text="bcc" />
-            </div>
-          </div>
-        </template>
-
-        <template v-if="displayReplyTo.length > 0">
-          <div class="text-right text-gray-500 select-text text-nowrap py-1">
-            Reply-To
-          </div>
-          <div class="w-fit">
-            <div
-              v-for="replyTo in displayReplyTo"
-              :key="replyTo"
-              class="text-gray-600 select-text w-fit"
-            >
-              <CopyBadge :text="replyTo" />
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <div
-        class="grid grid-cols-[auto_1fr] grid-rows-[max-content_max-content] gap-x-2"
-      >
+    <div class="grid grid-cols-[max-content_1fr] gap-x-2">
+      <template v-if="displayFrom">
         <div class="text-gray-500 select-text text-right text-nowrap py-1">
-          MAIL FROM
+          From
         </div>
         <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.from || '(empty)'" />
+          <CopyBadge :text="displayFrom" />
         </div>
+      </template>
 
+      <template v-if="displayTo.length > 0">
         <div class="text-gray-500 select-text text-right text-nowrap py-1">
-          RCPT TO
+          To
         </div>
-
         <div class="w-fit">
           <div
-            v-for="recipient in email.recipients"
+            v-for="recipient in displayTo"
             :key="recipient"
             class="text-gray-600 select-text w-fit"
           >
             <CopyBadge :text="recipient" />
           </div>
         </div>
-      </div>
+      </template>
+
+      <template v-if="displayCc.length > 0">
+        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+          CC
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="cc in displayCc"
+            :key="cc"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="cc" />
+          </div>
+        </div>
+      </template>
+
+      <template v-if="displayBcc.length > 0">
+        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+          BCC
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="bcc in displayBcc"
+            :key="bcc"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="bcc" />
+          </div>
+        </div>
+      </template>
+
+      <template v-if="displayReplyTo.length > 0">
+        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+          Reply-To
+        </div>
+        <div class="w-fit">
+          <div
+            v-for="replyTo in displayReplyTo"
+            :key="replyTo"
+            class="text-gray-600 select-text w-fit"
+          >
+            <CopyBadge :text="replyTo" />
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
