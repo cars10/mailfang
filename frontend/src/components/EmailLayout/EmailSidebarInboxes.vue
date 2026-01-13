@@ -43,7 +43,7 @@
       @dblclick="handleDoubleClick"
       @resize:end="handleRecipientsResizeEnd"
     >
-      <div class="flex flex-col gap-1 overflow-y-auto p-1">
+      <div class="flex flex-col gap-1 overflow-y-auto max-h-full p-1">
         <router-link
           v-for="recipient in filteredRecipients"
           :key="recipient.recipient"
