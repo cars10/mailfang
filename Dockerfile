@@ -60,7 +60,4 @@ ENV DATABASE_URL=sqlite::memory:
 ENV WEB_PORT=3000
 ENV SMTP_PORT=2525
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=1s --retries=5 \
-    CMD curl -f http://localhost:3000/health || exit 1
-
 CMD ["mailfang"]
