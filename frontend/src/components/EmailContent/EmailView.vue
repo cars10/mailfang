@@ -43,7 +43,13 @@
   const error = ref<string | null>(null)
   const viewMode = ref<ViewMode>('rendered')
 
-  export type ViewMode = 'rendered' | 'html' | 'text' | 'raw' | 'headers'
+  export type ViewMode =
+    | 'rendered'
+    | 'html'
+    | 'text'
+    | 'raw'
+    | 'headers'
+    | 'envelope'
 
   const tabs = computed(() => {
     const tabsList: Tab[] = []
@@ -64,6 +70,8 @@
     }
 
     tabsList.push({ id: 'raw', label: 'Raw', icon: CodeBracketIcon })
+
+    tabsList.push({ id: 'envelope', label: 'Envelope' })
 
     return tabsList
   })

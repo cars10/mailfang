@@ -19,7 +19,7 @@
       </a>
     </div>
 
-    <div v-if="inlineAttachments.length > 0" class="flex flex-wrap gap-2 mb-2">
+    <div v-if="inlineAttachments.length > 0" class="flex flex-wrap gap-2">
       <div
         class="text-gray-500 flex items-center cursor-help"
         title="Inline attachments are usually images displayed inside the email content and not typically intended to be downloaded."

@@ -6,6 +6,7 @@ pub mod ws;
 use crate::db::{DbPool, ListQuery};
 use axum::{Router, http::StatusCode, routing::get};
 use serde::Deserialize;
+use tower_http::compression::CompressionLayer;
 
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -73,6 +74,7 @@ pub async fn run(
         .route("/api/emails/{id}/rendered", get(routes::get_rendered_email))
         .route("/api/attachments/{id}", get(routes::get_attachment))
         .route("/ws", get(ws::websocket_handler))
+        .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(log_http_request));
 
     let app = frontend::attach_frontend_routes(app).with_state(app_state);

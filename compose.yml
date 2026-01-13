@@ -31,12 +31,6 @@ services:
       - backend_target:/app/target
     environment:
       - DATABASE_URL=sqlite:///app/mailfang.db
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 20s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
 
 volumes:
   backend_target:

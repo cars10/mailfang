@@ -1,13 +1,11 @@
 <template>
   <div class="p-4 shadow-md">
-    <EmailAttachments
-      v-if="email.attachments.length > 0"
-      :email="email"
-      class="mb-2"
-    />
+    <div class="flex flex-row justify-between gap-4">
+      <EmailAttachments v-if="email.attachments.length > 0" :email="email" />
 
-    <div class="text-gray-500 flex align-center text-nowrap">
-      Total size: {{ formatSize(email.size) }} ({{ email.size }} bytes)
+      <div class="text-gray-500 flex align-center text-nowrap">
+        {{ formatSize(email.size) }} ({{ email.size }} bytes)
+      </div>
     </div>
   </div>
 </template>
