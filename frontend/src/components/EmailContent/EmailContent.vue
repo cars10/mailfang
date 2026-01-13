@@ -37,7 +37,11 @@
       >
         <Spinner size="6" />
       </div>
-      <div v-else :class="renderedWrapperClass">
+      <div
+        v-else
+        :class="renderedWrapperClass"
+        class="border-t border-gray-200"
+      >
         <div :class="iframeWrapperClass" :style="iframeWrapperStyle">
           <iframe
             :key="renderedUrl"

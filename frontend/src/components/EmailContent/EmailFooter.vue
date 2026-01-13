@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 shadow-md">
+  <div class="p-4 border-t border-gray-200">
     <div class="flex flex-row justify-between gap-4">
       <EmailAttachments v-if="email.attachments.length > 0" :email="email" />
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="shadow-lg z-20">
+  <div class="shadow-lg z-20 border-r border-gray-200">
     <vue-resizable
       :active="['r']"
       :min-width="350"
