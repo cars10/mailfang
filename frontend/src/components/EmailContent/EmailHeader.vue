@@ -86,7 +86,7 @@
       </div>
 
       <div
-        class="grid grid-cols-[auto_1fr] grid-rows-[max-content_max-content] gap-2"
+        class="grid grid-cols-[auto_1fr] grid-rows-[max-content_max-content] gap-x-2"
       >
         <div class="text-gray-500 select-text text-right text-nowrap py-1">
           MAIL FROM
