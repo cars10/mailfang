@@ -1,4 +1,5 @@
 use clap::Parser;
+use diesel::connection::SimpleConnection;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
@@ -10,6 +11,18 @@ use tokio::sync::broadcast;
 use tracing::{error, info};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
+#[derive(Debug)]
+struct ConnectionOptions;
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
+    for ConnectionOptions
+{
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+        conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 30000;")
+            .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -67,6 +80,7 @@ async fn setup_database(config: &config::Config) -> Result<db::DbPool, io::Error
         .trim_start_matches("sqlite:");
     let manager = ConnectionManager::<SqliteConnection>::new(url);
     let pool = r2d2::Pool::builder()
+        .connection_customizer(Box::new(ConnectionOptions))
         .build(manager)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
