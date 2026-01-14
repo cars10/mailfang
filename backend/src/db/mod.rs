@@ -69,6 +69,7 @@ pub struct EmailListPartial {
     pub from: String,
     pub read: bool,
     pub has_attachments: bool,
+    pub headers: Option<String>,
 }
 
 #[derive(HasQuery, Clone)]
@@ -168,6 +169,8 @@ pub struct EmailListRecord {
     pub read: bool,
     pub has_attachments: bool,
     pub recipients: Vec<String>,
+    #[serde(serialize_with = "serialize_json_string")]
+    pub headers: Option<String>,
 }
 
 impl From<EmailRecord> for EmailListRecord {
@@ -181,6 +184,7 @@ impl From<EmailRecord> for EmailListRecord {
             recipients: record.recipients,
             read: record.read,
             has_attachments: !record.attachments.is_empty(),
+            headers: record.headers,
         }
     }
 }

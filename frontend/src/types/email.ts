@@ -33,6 +33,7 @@ export interface EmailListRecord {
   recipients: string[]
   read: boolean
   has_attachments: boolean
+  headers: Record<string, string[]> | null
 }
 
 export interface RecipientCount {

@@ -59,8 +59,8 @@
               </div>
               <div class="flex flex-row gap-2">
                 <div class="text-gray-500">To:</div>
-                <div class="truncate" :title="mail.recipients.join(', ')">
-                  {{ mail.recipients.join(', ') }}
+                <div class="truncate">
+                  {{ parseAndDecodeHeaderValues(mail.headers?.To).join(', ') }}
                 </div>
               </div>
             </div>
@@ -90,6 +90,7 @@
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
+  import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
 
   interface Props {
     emails: EmailListRecord[]
