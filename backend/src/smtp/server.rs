@@ -193,7 +193,8 @@ async fn handle_connection(
                     Err(e) => {
                         let response = match &e {
                             SmtpError::Protocol(msg) => {
-                                if msg.len() >= 3 && msg.chars().take(3).all(|c| c.is_ascii_digit()) {
+                                if msg.len() >= 3 && msg.chars().take(3).all(|c| c.is_ascii_digit())
+                                {
                                     msg.to_string()
                                 } else {
                                     format!("500 {}", e)
@@ -201,7 +202,7 @@ async fn handle_connection(
                             }
                             _ => format!("500 {}", e),
                         };
-                        
+
                         if response.starts_with("530") {
                             error!(
                                 component = "smtp",
@@ -222,7 +223,7 @@ async fn handle_connection(
                                 "Protocol error"
                             );
                         }
-                        
+
                         let _ = framed.send(response).await;
                         // Don't break on error, continue processing
                     }

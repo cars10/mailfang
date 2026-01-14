@@ -11,9 +11,6 @@ services:
       - 5173:5173
     volumes:
       - ./frontend/src:/app/src
-    depends_on:
-      backend:
-        condition: service_healthy
 
   backend:
     container_name: $PROJECT-backend
