@@ -21,15 +21,16 @@ Use MailFang locally during development, deploy it in a sandbox, or use it in yo
 
 ### Docker
 
-Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker hub:
+Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker hub or from ghcr.io:
+
+* `cars10/mailfang`
+* `ghcr.io/cars10/mailfang`
 
 ```bash
 docker run --name mailfang \
            -p 3000:3000 \
            -p 2525:2525 \
            -d cars10/mailfang
-
-# or use the image from ghcr.io: ghcr.io/cars10/mailfang
 ```
 
 Default ports:
