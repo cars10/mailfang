@@ -26,8 +26,6 @@ services:
       - ./backend/Cargo.lock:/app/Cargo.lock
       - ./backend/migrations:/app/migrations
       - backend_target:/app/target
-    environment:
-      - DATABASE_URL=sqlite:///app/mailfang.db
 
 volumes:
   backend_target:
