@@ -18,7 +18,12 @@ If SMTP authentication credentials are not configured, all authentication attemp
     version
 )]
 pub struct Config {
-    #[arg(long, env = "SMTP_HOST", default_value = "0.0.0.0:2525")]
+    #[arg(
+        long,
+        env = "SMTP_HOST",
+        help = "SMTP server listen address",
+        default_value = "127.0.0.1:2525"
+    )]
     pub smtp_host: String,
 
     #[arg(long, env = "SMTP_USERNAME", help = "SMTP authentication username")]
@@ -35,14 +40,19 @@ pub struct Config {
     )]
     pub smtp_max_connections: usize,
 
-    #[arg(long, env = "WEB_HOST", default_value = "0.0.0.0:3000")]
+    #[arg(
+        long,
+        env = "WEB_HOST",
+        help = "Web server listen address",
+        default_value = "127.0.0.1:3000"
+    )]
     pub web_host: String,
 
     #[arg(
         long,
         env = "DATABASE_URL",
-        default_value = "sqlite::memory:",
-        help = "SQLite database URL. Defaults to in-memory database."
+        default_value = "sqlite://./mailfang.db",
+        help = "SQLite database URL."
     )]
     pub database_url: String,
 }

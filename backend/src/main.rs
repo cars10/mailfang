@@ -105,10 +105,6 @@ fn create_sqlite_db_file(database_url: &str) -> io::Result<()> {
         ));
     }
 
-    if database_url.contains(":memory:") {
-        return Ok(());
-    }
-
     let path_str = database_url
         .trim_start_matches("sqlite://")
         .trim_start_matches("sqlite:")
