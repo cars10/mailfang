@@ -1,6 +1,7 @@
 use crate::{
     compression,
     db::{DbConnection, DbError},
+    html,
     models::{Attachment, Email},
     schema, smtp,
 };
@@ -51,14 +52,12 @@ fn process_html_body(
     }
 
     let cid_map = build_cid_map(attachments, attachment_ids);
-    if cid_map.is_empty() {
-        return Some(body_html.to_string());
-    }
-
-    use regex::Regex;
-    let re = Regex::new(r#"(?i)src\s*=\s*(["']?)cid:([^"'\s>]+)"#).unwrap();
-    let processed_html = re
-        .replace_all(body_html, |caps: &regex::Captures| {
+    let mut processed_html = if cid_map.is_empty() {
+        body_html.to_string()
+    } else {
+        use regex::Regex;
+        let re = Regex::new(r#"(?i)src\s*=\s*(["']?)cid:([^"'\s>]+)"#).unwrap();
+        re.replace_all(body_html, |caps: &regex::Captures| {
             let quote = caps.get(1).map(|m| m.as_str()).unwrap_or("");
             let cid = caps.get(2).map(|m| m.as_str()).unwrap_or("");
             let cid_clean = cid.trim_start_matches('<').trim_end_matches('>');
@@ -73,9 +72,27 @@ fn process_html_body(
                     .unwrap_or_default()
             }
         })
-        .to_string();
+        .to_string()
+    };
+
+    processed_html = add_base_tag(&processed_html);
 
     Some(processed_html)
+}
+
+fn add_base_tag(html: &str) -> String {
+    use regex::{Captures, Regex};
+
+    let base_tag = "<base target=\"_blank\">";
+    let base_regex = Regex::new(r"(?i)<base[^>]*>").unwrap();
+
+    if base_regex.is_match(html) {
+        return base_regex
+            .replace(html, |_caps: &Captures| base_tag)
+            .to_string();
+    }
+
+    html::insert_into_head(html, base_tag)
 }
 
 fn build_cid_map(
