@@ -1,42 +1,55 @@
 # MailFang
 
-MailFang is the SMTP server and web interface for email testing that you have been waiting for!
+MailFang is the email testing tool that you've been waiting for. It provides a local smtp server and a modern webui to view your emails.
 
 ## About
 
-Use MailFang locally during development, deploy it in a sandbox, or use it in your staging environment instead of sending real emails.
+Use MailFang locally during development, deploy it in a sandbox, or use it in your staging environment instead of sending emails to an external service. Regain control of your data and eliminate unnecessary costs.
 
 ### Features
 
 * Easy deployment via docker or single file binary
-* View rendered email content, inspect headers, attachments and raw email
-* Check how your email reacts when users block remote content loading
-* Preview emails in mobile, tablet, and desktop layouts
-* Data is stored in sqlite database - file based or in-memory
-* SMTP auth supports: `PLAIN`, `LOGIN`, `CRAM-MD5`, or no authentication
-* Realtime email updates in the webui
+* View rendered email content, inspect headers, attachments and raw emails
+* Preview emails in different viewports and block remote content loading
+* Realtime updates in the webui
 * ... and much more
 
-## Usage
-
-### Docker
-
-Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker hub:
+## Quickstart
 
 ```bash
 docker run --name mailfang \
            -p 3000:3000 \
            -p 2525:2525 \
            -d cars10/mailfang
-
-# or use the image from ghcr.io: ghcr.io/cars10/mailfang
 ```
 
-Default ports:
+Open the webui on [0.0.0.0:3000](http://0.0.0.0:3000) and send emails to `0.0.0.0:2525`.
 
-* `3000` - Web UI
-* `2525` - SMTP Server
+## Usage
 
+By default mailfang will use the following ports:
+
+* Webui: `3000` 
+* SMTP: `2525` 
+
+### Docker
+
+Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker hub or from ghcr.io:
+
+* `cars10/mailfang`
+* `ghcr.io/cars10/mailfang`
+
+```bash
+docker run --name mailfang \
+           -p 3000:3000 \
+           -p 2525:2525 \
+           -d cars10/mailfang
+```
+
+The services will be reachable via:
+
+* Webui: [0.0.0.0:3000](http://0.0.0.0:3000)
+* SMTP: `0.0.0.0:2525`
 
 ### Binary
 
@@ -46,39 +59,51 @@ Default ports:
 
 You can view all available configuration options by running `./mailfang --help`.
 
+## Sending emails to MailFang
+
+To send emails to Mailfang simply configure your email service to use the respective address and port where MailFang is running. Assuming you run MailFang in docker with default settings:
+
+### Rails ActionMailer
+
+```rails
+config.action_mailer.smtp_settings = {
+  address:         "0.0.0.0",
+  port:            2525,
+  domain:          "example.com",
+  authentication:  "plain"
+}
+```
+
+### Swaks
+
+You can do a simple test on the command line via swaks:
+
+```bash
+swaks --to recipient@example.com \
+      --from sender@example.com \
+      --server 0.0.0.0:2525 \
+      --header "From: sender@example.com" \
+      --header "To: recipient@example.com" \
+      --header "Subject: Test Email" \
+      --body "This is a plain text message."
+```
+
 ## Configuration
 
 You can configure MailFang via command-line arguments or environment variables. When running in docker, environment variables are recommended.
 
 ### Available Options
 
-```bash
---smtp-host <SMTP_HOST>
-    [env: SMTP_HOST=]
-    [default: 0.0.0.0:2525]
+All configuration options are optional. The smtp server will accept all connection if no credentials are configured.
 
---smtp-username <SMTP_USERNAME>
-    SMTP authentication username
-    [env: SMTP_USERNAME=]
-
---smtp-password <SMTP_PASSWORD>
-    SMTP authentication password
-    [env: SMTP_PASSWORD=]
-
---smtp-max-connections <SMTP_MAX_CONNECTIONS>
-    Maximum number of concurrent SMTP connections
-    [env: SMTP_MAX_CONNECTIONS=]
-    [default: 4]
-
---web-host <WEB_HOST>
-    [env: WEB_HOST=]
-    [default: 0.0.0.0:3000]
-
---database-url <DATABASE_URL>
-    SQLite database URL. Defaults to in-memory database.
-    [env: DATABASE_URL=sqlite:///data/mailfang.db]
-    [default: sqlite::memory:]
-```
+| Option | Environment Variable | Description | Binary Default | Docker Default |
+|--------|---------------------|-------------|----------------|----------------|
+| `--smtp-host` | `SMTP_HOST` | SMTP server listen address | `127.0.0.1:2525` | `0.0.0.0:2525` |
+| `--smtp-username` | `SMTP_USERNAME` | SMTP authentication username | _none_ | _none_ |
+| `--smtp-password` | `SMTP_PASSWORD` | SMTP authentication password | _none_ | _none_ |
+| `--smtp-max-connections` | `SMTP_MAX_CONNECTIONS` | Maximum number of concurrent SMTP connections | `4` | `4` |
+| `--web-host` | `WEB_HOST` | Web server listen address | `127.0.0.1:3000` | `0.0.0.0:3000` |
+| `--database-url` | `DATABASE_URL` | SQLite database URL | `sqlite://./mailfang.db` | `sqlite:///data/mailfang.db` |
 
 ### Configuration Example
 
@@ -99,10 +124,24 @@ docker run --name mailfang \
 
 ### Database Persistence
 
-By default, MailFang uses an in-memory database. To persist emails between restarts configure a database url:
+MailFang saves emails in a local sqlite database. To persist the data:
 
-* Docker: Use `DATABASE_URL=sqlite:///data/mailfang.db` and mount a volume to `/data`
-* Binary: Use `--database-url sqlite:///path/to/mailfang.db` or set `DATABASE_URL=sqlite:///path/to/mailfang.db`
+When running via docker use `DATABASE_URL=sqlite:///data/mailfang.db` and mount a volume to `/data`.
+
+The binary defaults to `./mailfang.db`, change it by using `--database-url sqlite:///path/to/mailfang.db` or via environment variables `DATABASE_URL=sqlite:///path/to/mailfang.db`
+
+## SMTP Server
+
+The SMTP server mostly implements [RFC 5321 - Simple Mail Transfer Protocol](https://datatracker.ietf.org/doc/html/rfc5321).
+
+It supports the following authorization methods:
+
+* no auth
+* `PLAIN`
+* `LOGIN`
+* `CRAM-MD5`
+
+By default it only accepts a maximum of `4` emails at the same time. This is configurable via `--smtp-max-connections 12` or `SMTP_MAX_CONNECTIONS=12`.
 
 ## Development
 

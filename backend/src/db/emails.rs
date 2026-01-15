@@ -101,6 +101,7 @@ fn emails_to_records(
                 read: email.read,
                 has_attachments: email.has_attachments,
                 recipients,
+                headers: email.headers,
             }
         })
         .collect()

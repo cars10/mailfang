@@ -56,7 +56,9 @@ WORKDIR /data
 
 USER appuser
 
-ENV DATABASE_URL=sqlite::memory:
+ENV DATABASE_URL=sqlite:///data/mailfang.db
+ENV SMTP_HOST=0.0.0.0:2525
+ENV WEB_HOST=0.0.0.0:3000
 ENV WEB_PORT=3000
 ENV SMTP_PORT=2525
 

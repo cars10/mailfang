@@ -11,9 +11,6 @@ services:
       - 5173:5173
     volumes:
       - ./frontend/src:/app/src
-    depends_on:
-      backend:
-        condition: service_healthy
 
   backend:
     container_name: $PROJECT-backend
@@ -21,6 +18,9 @@ services:
       context: ./backend
       dockerfile: resources/Dockerfile.dev
     command: cargo run
+    environment:
+      - SMTP_HOST=0.0.0.0:2525
+      - WEB_HOST=0.0.0.0:3000
     ports:
       - 2525:2525
     volumes:
@@ -29,8 +29,6 @@ services:
       - ./backend/Cargo.lock:/app/Cargo.lock
       - ./backend/migrations:/app/migrations
       - backend_target:/app/target
-    environment:
-      - DATABASE_URL=sqlite:///app/mailfang.db
 
 volumes:
   backend_target:

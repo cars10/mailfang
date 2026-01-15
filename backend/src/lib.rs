@@ -2,6 +2,7 @@ pub mod compression;
 pub mod config;
 pub mod csp;
 pub mod db;
+pub mod html;
 pub mod logging;
 pub mod models;
 pub mod schema;

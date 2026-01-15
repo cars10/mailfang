@@ -95,10 +95,7 @@
   import type { DropdownMenuItem } from '@/components/shared/DropdownMenu/DropdownMenu.vue'
   import { apiClient } from '@/api/client'
   import { TrashIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
-  import {
-    decodeAddress,
-    parseAndDecodeHeaderValues,
-  } from '@/utils/emailAddress'
+  import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
 
   const props = defineProps<{ email: EmailRecord }>()
 
@@ -180,35 +177,23 @@
       : mailDate.toLocaleDateString()
   }
 
-  // Get From header, preferring header over envelope
   const displayFrom = computed(() => {
-    const fromHeader = props.email.headers?.From?.[0]
-    return fromHeader ? decodeAddress(fromHeader) : props.email.from
+    return parseAndDecodeHeaderValues(props.email.headers?.From)?.[0]
   })
 
-  // Get To header, preferring header over envelope recipients
   const displayTo = computed(() => {
-    const toHeaders = props.email.headers?.To
-    return toHeaders?.length
-      ? parseAndDecodeHeaderValues(toHeaders)
-      : props.email.recipients
+    return parseAndDecodeHeaderValues(props.email.headers?.To)
   })
 
-  // Parse CC addresses, handling comma-separated values
   const displayCc = computed(() => {
-    const ccHeaders = props.email.headers?.Cc
-    return ccHeaders ? parseAndDecodeHeaderValues(ccHeaders) : []
+    return parseAndDecodeHeaderValues(props.email.headers?.Cc)
   })
 
-  // Parse BCC addresses, handling comma-separated values
   const displayBcc = computed(() => {
-    const bccHeaders = props.email.headers?.Bcc
-    return bccHeaders ? parseAndDecodeHeaderValues(bccHeaders) : []
+    return parseAndDecodeHeaderValues(props.email.headers?.Bcc)
   })
 
-  // Parse Reply-To addresses, handling comma-separated values
   const displayReplyTo = computed(() => {
-    const replyToHeaders = props.email.headers?.['Reply-To']
-    return replyToHeaders ? parseAndDecodeHeaderValues(replyToHeaders) : []
+    return parseAndDecodeHeaderValues(props.email.headers?.['Reply-To'])
   })
 </script>
