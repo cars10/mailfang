@@ -17,7 +17,12 @@
         />
       </div>
 
-      <div class="overflow-y-auto px-4 flex flex-col gap-2">
+      <div
+        ref="emailListContainer"
+        tabindex="0"
+        class="overflow-y-auto px-4 flex flex-col gap-2 focus:outline-none"
+        @keydown="handleKeyDown"
+      >
         <div
           v-if="loading && emails.length === 0"
           class="flex items-center justify-center p-8"
@@ -79,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed, nextTick, watch } from 'vue'
   import { useIntersectionObserver } from '@vueuse/core'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import { useSearchStore } from '@/stores/Search'
@@ -91,13 +96,14 @@
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
+  import { apiClient } from '@/api/client'
 
   interface Props {
     emails: EmailListRecord[]
     loading: boolean
   }
 
-  defineProps<Props>()
+  const props = defineProps<Props>()
   const emit = defineEmits<{ 'load-more': [] }>()
 
   const searchStore = useSearchStore()
@@ -141,6 +147,34 @@
       router.push(`/emails/inbox/email/${id}`)
     }
   }
+
+  const openMailByIndex = (index: number) => {
+    if (index < 0 || index >= props.emails.length) return
+    openMail(props.emails[index]!.id)
+    nextTick(() => emailListContainer.value?.focus())
+  }
+
+  const emailListContainer = ref<HTMLElement | null>(null)
+  const currentEmailIndex = computed(() => {
+    const currentId = route.params.id as string | undefined
+    if (!currentId) return -1
+    return props.emails.findIndex(email => email.id === currentId)
+  })
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      openMailByIndex(currentEmailIndex.value + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      openMailByIndex(currentEmailIndex.value - 1)
+    }
+  }
+
+  watch(
+    () => route.params.id,
+    () => nextTick(() => emailListContainer.value?.focus())
+  )
 
   const loadMoreSentinel = ref<HTMLElement | null>(null)
 

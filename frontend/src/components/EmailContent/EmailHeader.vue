@@ -113,7 +113,6 @@
     try {
       loadingDelete.value = true
       await apiClient.deleteEmail(props.email.id)
-      // Navigate back to inbox after deletion
       router.push('/emails/inbox')
     } catch (err) {
       console.error('Failed to delete email:', err)
