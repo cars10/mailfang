@@ -8,38 +8,59 @@
       @dblclick="handleDoubleClick"
       @resize:move="handleResizeEnd"
     >
-      <div class="p-4 h-full overflow-y-auto">
-        <h1 class="text-2xl font-bold mb-4 text-center">{{ headerText }}</h1>
+      <div class="p-4 h-full overflow-y-auto flex flex-col justify-between">
+        <div>
+          <h1 class="text-2xl font-bold mb-4 text-center">{{ headerText }}</h1>
 
-        <div class="flex flex-col gap-2">
-          <router-link
-            :to="'/emails/inbox'"
-            title="All emails"
-            active-class="text-primary bg-gray-200"
-            class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] overflow-hidden min-w-4"
-          >
-            <div class="flex flex-row gap-2 items-center min-w-4">
-              <InboxIcon class="h-4 w-4 shrink-0" />
-              <div v-if="!sidebarCollapsed" class="truncate">All emails</div>
-            </div>
-            <span class="text-sm text-gray-600 font-mono">
-              {{ props.counts.inbox }}
-            </span>
-          </router-link>
+          <div class="flex flex-col gap-2">
+            <router-link
+              :to="'/emails/inbox'"
+              title="All emails"
+              active-class="text-primary bg-gray-200"
+              class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] overflow-hidden min-w-4"
+            >
+              <div class="flex flex-row gap-2 items-center min-w-4">
+                <InboxIcon class="h-4 w-4 shrink-0" />
+                <div v-if="!sidebarCollapsed" class="truncate">All emails</div>
+              </div>
+              <span class="text-sm text-gray-600 font-mono">
+                {{ props.counts.inbox }}
+              </span>
+            </router-link>
+          </div>
+
+          <EmailSidebarInboxes :counts="props.counts" />
+
+          <div class="flex flex-col gap-2 mt-4">
+            <button
+              class="btn flex flex-row items-center gap-2"
+              :class="{ 'justify-center': sidebarCollapsed }"
+              :disabled="loadingDeleteAll"
+              @click="handleDeleteAll"
+            >
+              <TrashIcon class="h-4" />
+              <div v-if="!sidebarCollapsed">Clear</div>
+            </button>
+          </div>
         </div>
 
-        <EmailSidebarInboxes :counts="props.counts" />
-
-        <div class="flex flex-col gap-2 mt-4">
-          <button
-            class="btn flex flex-row items-center gap-2"
-            :class="{ 'justify-center': sidebarCollapsed }"
-            :disabled="loadingDeleteAll"
-            @click="handleDeleteAll"
+        <div class="flex flex-col gap-2">
+          <a
+            href="https://github.com/cars10/mailfang"
+            target="_blank"
+            class="text-gray-800 hover:text-primary flex items-center gap-2"
           >
-            <TrashIcon class="h-4" />
-            <div v-if="!sidebarCollapsed">Clear</div>
-          </button>
+            <CodeBracketIcon class="h-4 w-4" />
+            <span v-if="!sidebarCollapsed">GitHub</span>
+          </a>
+          <a
+            href="https://mailfang.com"
+            target="_blank"
+            class="text-gray-800 hover:text-primary flex items-center gap-2"
+          >
+            <GlobeAltIcon class="h-4 w-4" />
+            <span v-if="!sidebarCollapsed">mailfang.com</span>
+          </a>
         </div>
       </div>
     </vue-resizable>
@@ -50,7 +71,12 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useMailLayoutStore } from '@/stores/MailLayout'
-  import { InboxIcon, TrashIcon } from '@heroicons/vue/24/outline'
+  import {
+    InboxIcon,
+    TrashIcon,
+    GlobeAltIcon,
+    CodeBracketIcon,
+  } from '@heroicons/vue/24/outline'
   import type { EmailCounts } from '@/types/email'
   import { apiClient } from '@/api/client'
   import VueResizable from 'vue-resizable'
