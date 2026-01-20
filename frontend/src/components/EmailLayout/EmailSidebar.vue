@@ -10,7 +10,15 @@
     >
       <div class="p-4 h-full overflow-y-auto flex flex-col justify-between">
         <div>
-          <h1 class="text-2xl font-bold mb-4 text-center">{{ headerText }}</h1>
+          <h1
+            class="text-2xl font-bold mb-4 text-center flex flex-row items-center justify-center"
+          >
+            <EnvelopeIcon
+              v-if="!sidebarCollapsed"
+              class="h-6 w-6 min-w-4 mr-2"
+            />
+            {{ headerText }}
+          </h1>
 
           <div class="flex flex-col gap-2">
             <router-link
@@ -38,7 +46,7 @@
               :disabled="loadingDeleteAll"
               @click="handleDeleteAll"
             >
-              <TrashIcon class="h-4" />
+              <TrashIcon class="h-4 w-4 min-w-4" />
               <div v-if="!sidebarCollapsed">Clear</div>
             </button>
           </div>
@@ -48,18 +56,18 @@
           <a
             href="https://github.com/cars10/mailfang"
             target="_blank"
-            class="text-gray-800 hover:text-primary flex items-center gap-2"
+            class="text-gray-800 hover:text-primary flex items-center gap-2 h-6"
           >
-            <CodeBracketIcon class="h-4 w-4" />
-            <span v-if="!sidebarCollapsed">GitHub</span>
+            <CodeBracketIcon class="h-4 w-4 min-w-4 min-h-4" />
+            <div v-if="!sidebarCollapsed">GitHub</div>
           </a>
           <a
             href="https://mailfang.com"
             target="_blank"
-            class="text-gray-800 hover:text-primary flex items-center gap-2"
+            class="text-gray-800 hover:text-primary flex items-center gap-2 h-6"
           >
-            <GlobeAltIcon class="h-4 w-4" />
-            <span v-if="!sidebarCollapsed">mailfang.com</span>
+            <GlobeAltIcon class="h-4 w-4 min-w-4 min-h-4" />
+            <div v-if="!sidebarCollapsed">mailfang.com</div>
           </a>
         </div>
       </div>
@@ -76,6 +84,7 @@
     TrashIcon,
     GlobeAltIcon,
     CodeBracketIcon,
+    EnvelopeIcon,
   } from '@heroicons/vue/24/outline'
   import type { EmailCounts } from '@/types/email'
   import { apiClient } from '@/api/client'
