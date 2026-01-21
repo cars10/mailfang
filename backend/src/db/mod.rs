@@ -4,7 +4,6 @@ use ::r2d2::PooledConnection;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use serde::Serialize;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -66,10 +65,9 @@ pub struct EmailListPartial {
     pub subject: Option<String>,
     pub date: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
-    pub from: String,
+    pub envelope_from: String,
     pub read: bool,
     pub has_attachments: bool,
-    pub headers: Option<String>,
 }
 
 #[derive(HasQuery, Clone)]
@@ -80,9 +78,8 @@ pub struct EmailPartial {
     pub message_id: Option<String>,
     pub subject: Option<String>,
     pub date: Option<NaiveDateTime>,
-    pub headers: Option<String>,
     pub created_at: NaiveDateTime,
-    pub from: String,
+    pub envelope_from: String,
     pub size: i32,
     pub body_text: Option<String>,
     pub body_html: Option<String>,
@@ -104,19 +101,6 @@ pub struct AttachmentPartial {
 
 pub type DbPool = Arc<r2d2::Pool<ConnectionManager<SqliteConnection>>>;
 pub type DbConnection = PooledConnection<ConnectionManager<SqliteConnection>>;
-
-pub fn serialize_json_string<S>(s: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    match s {
-        Some(s) => {
-            let v: serde_json::Value = serde_json::from_str(s).unwrap_or(serde_json::Value::Null);
-            v.serialize(serializer)
-        }
-        None => serializer.serialize_none(),
-    }
-}
 
 #[derive(Clone, Default, serde::Deserialize)]
 pub struct ListParams {
@@ -147,10 +131,9 @@ pub struct EmailRecord {
     pub message_id: Option<String>,
     pub subject: Option<String>,
     pub date: Option<NaiveDateTime>,
-    #[serde(serialize_with = "serialize_json_string")]
-    pub headers: Option<String>,
+    pub headers: std::collections::HashMap<String, Vec<String>>,
     pub created_at: NaiveDateTime,
-    pub from: String,
+    pub envelope_from: String,
     pub size: i32,
     pub body_text: Option<String>,
     pub body_html: Option<String>,
@@ -165,12 +148,11 @@ pub struct EmailListRecord {
     pub subject: Option<String>,
     pub date: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
-    pub from: String,
+    pub envelope_from: String,
     pub read: bool,
     pub has_attachments: bool,
     pub recipients: Vec<String>,
-    #[serde(serialize_with = "serialize_json_string")]
-    pub headers: Option<String>,
+    pub to_header: Option<Vec<String>>,
 }
 
 impl From<EmailRecord> for EmailListRecord {
@@ -180,11 +162,11 @@ impl From<EmailRecord> for EmailListRecord {
             subject: record.subject,
             date: record.date,
             created_at: record.created_at,
-            from: record.from,
+            envelope_from: record.envelope_from,
             recipients: record.recipients,
             read: record.read,
             has_attachments: !record.attachments.is_empty(),
-            headers: record.headers,
+            to_header: record.headers.get("To").cloned(),
         }
     }
 }

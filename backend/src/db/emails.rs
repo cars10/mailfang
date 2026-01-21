@@ -25,7 +25,7 @@ pub fn get_emails(
                 schema::emails::subject
                     .like(pattern.clone())
                     .or(schema::emails::message_id.like(pattern.clone()))
-                    .or(schema::emails::from.like(pattern.clone()))
+                    .or(schema::emails::envelope_from.like(pattern.clone()))
                     .or(schema::emails::body_text.like(pattern.clone()))
                     .or(schema::emails::body_html.like(pattern)),
             );
@@ -54,7 +54,8 @@ fn process_emails_with_recipients(
 ) -> Result<Vec<EmailListRecord>, DieselError> {
     let email_ids: Vec<String> = emails.iter().map(|e| e.id.clone()).collect();
     let recipients_map = load_recipients_for_emails(conn, &email_ids)?;
-    Ok(emails_to_records(emails, recipients_map))
+    let to_headers_map = load_to_headers_for_emails(conn, &email_ids)?;
+    Ok(emails_to_records(emails, recipients_map, to_headers_map))
 }
 
 fn load_recipients_for_emails(
@@ -62,12 +63,12 @@ fn load_recipients_for_emails(
     email_ids: &[String],
 ) -> Result<std::collections::HashMap<String, Vec<String>>, DieselError> {
     let all_recipients = FilterDsl::filter(
-        schema::email_recipients::table.inner_join(schema::recipients::table),
-        schema::email_recipients::email_id.eq_any(email_ids),
+        schema::email_envelope_recipients::table.inner_join(schema::envelope_recipients::table),
+        schema::email_envelope_recipients::email_id.eq_any(email_ids),
     )
     .select((
-        schema::email_recipients::email_id,
-        schema::recipients::email,
+        schema::email_envelope_recipients::email_id,
+        schema::envelope_recipients::email,
     ))
     .load::<(String, String)>(conn)?;
 
@@ -83,25 +84,52 @@ fn load_recipients_for_emails(
     Ok(recipients_map)
 }
 
+fn load_to_headers_for_emails(
+    conn: &mut DbConnection,
+    email_ids: &[String],
+) -> Result<std::collections::HashMap<String, Vec<String>>, DieselError> {
+    let to_headers = FilterDsl::filter(
+        schema::headers::table,
+        schema::headers::email_id
+            .eq_any(email_ids)
+            .and(schema::headers::name.eq("To")),
+    )
+    .select((schema::headers::email_id, schema::headers::value))
+    .load::<(String, String)>(conn)?;
+
+    let mut headers_map: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for (email_id, header_value) in to_headers {
+        headers_map
+            .entry(email_id)
+            .or_insert_with(Vec::new)
+            .push(header_value);
+    }
+
+    Ok(headers_map)
+}
+
 fn emails_to_records(
     emails: Vec<EmailListPartial>,
     mut recipients_map: std::collections::HashMap<String, Vec<String>>,
+    mut to_headers_map: std::collections::HashMap<String, Vec<String>>,
 ) -> Vec<EmailListRecord> {
     emails
         .into_iter()
         .map(|email| {
             let id_clone = email.id.clone();
             let recipients = recipients_map.remove(&id_clone).unwrap_or_default();
+            let to_header = to_headers_map.remove(&id_clone);
             EmailListRecord {
                 id: email.id,
                 subject: email.subject,
                 date: email.date,
                 created_at: email.created_at,
-                from: email.from,
+                envelope_from: email.envelope_from,
                 read: email.read,
                 has_attachments: email.has_attachments,
                 recipients,
-                headers: email.headers,
+                to_header,
             }
         })
         .collect()
@@ -115,12 +143,13 @@ pub fn get_emails_by_recipient(
     let build_query = || {
         let mut query = FilterDsl::filter(
             schema::emails::table
-                .inner_join(schema::email_recipients::table)
+                .inner_join(schema::email_envelope_recipients::table)
                 .inner_join(
-                    schema::recipients::table
-                        .on(schema::email_recipients::recipient_id.eq(schema::recipients::id)),
+                    schema::envelope_recipients::table
+                        .on(schema::email_envelope_recipients::envelope_recipient_id
+                            .eq(schema::envelope_recipients::id)),
                 ),
-            schema::recipients::email.eq(recipient_email),
+            schema::envelope_recipients::email.eq(recipient_email),
         )
         .into_boxed();
 
@@ -131,7 +160,7 @@ pub fn get_emails_by_recipient(
                 schema::emails::subject
                     .like(pattern.clone())
                     .or(schema::emails::message_id.like(pattern.clone()))
-                    .or(schema::emails::from.like(pattern.clone()))
+                    .or(schema::emails::envelope_from.like(pattern.clone()))
                     .or(schema::emails::body_text.like(pattern.clone()))
                     .or(schema::emails::body_html.like(pattern)),
             );

@@ -65,7 +65,9 @@
               <div class="flex flex-row gap-2">
                 <div class="text-gray-500">To:</div>
                 <div class="truncate">
-                  {{ parseAndDecodeHeaderValues(mail.headers?.To).join(', ') }}
+                  {{
+                    parseAndDecodeHeaderValues(mail.to_header || []).join(', ')
+                  }}
                 </div>
               </div>
             </div>
@@ -96,7 +98,6 @@
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
-  import { apiClient } from '@/api/client'
 
   interface Props {
     emails: EmailListRecord[]

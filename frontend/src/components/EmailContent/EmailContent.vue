@@ -79,7 +79,7 @@
           MAIL FROM
         </div>
         <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.from || '(empty)'" />
+          <CopyBadge :text="email.envelope_from || '(empty)'" />
         </div>
 
         <div class="text-gray-500 select-text text-right text-nowrap py-1">

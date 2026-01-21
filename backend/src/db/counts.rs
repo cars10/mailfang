@@ -23,14 +23,14 @@ pub fn get_email_counts(conn: &mut DbConnection) -> Result<EmailStats, DieselErr
         .count()
         .get_result(conn)?;
 
-    let recipients_stats: Vec<RecipientStats> = schema::recipients::table
-        .inner_join(schema::email_recipients::table)
-        .group_by(schema::recipients::id)
+    let recipients_stats: Vec<RecipientStats> = schema::envelope_recipients::table
+        .inner_join(schema::email_envelope_recipients::table)
+        .group_by(schema::envelope_recipients::id)
         .select((
-            schema::recipients::email,
-            count(schema::email_recipients::email_id),
+            schema::envelope_recipients::email,
+            count(schema::email_envelope_recipients::email_id),
         ))
-        .order_by(schema::recipients::email.asc())
+        .order_by(schema::envelope_recipients::email.asc())
         .load::<RecipientStats>(conn)?;
 
     Ok(EmailStats {

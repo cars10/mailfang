@@ -2,7 +2,7 @@ use crate::{
     compression,
     db::{DbConnection, DbError},
     html,
-    models::{Attachment, Email},
+    models::{Attachment, Email, Header},
     schema, smtp,
 };
 use chrono::Utc;
@@ -30,6 +30,7 @@ pub fn save_email(conn: &mut DbConnection, message: &smtp::Email) -> Result<Stri
             &attachment_ids,
             now,
         )?;
+        save_headers(conn, &new_email.id, &message.headers, now)?;
 
         Ok(new_email.id)
     })
@@ -129,11 +130,7 @@ fn create_email_record(
         message_id: message.message_id.clone(),
         subject: message.subject.clone(),
         date: message.date.map(|d| d.naive_utc()),
-        headers: message
-            .headers
-            .as_ref()
-            .map(|h| serde_json::to_string(h).unwrap()),
-        from: message.from.clone(),
+        envelope_from: message.from.clone(),
         size: message.size as i32,
         compressed_data,
         body_text: Some(message.body_text.clone()),
@@ -163,18 +160,18 @@ fn save_recipients(
 }
 
 fn get_or_create_recipient(conn: &mut DbConnection, email: &str) -> Result<String, DbError> {
-    match schema::recipients::table
-        .filter(schema::recipients::email.eq(email))
-        .select(schema::recipients::id)
+    match schema::envelope_recipients::table
+        .filter(schema::envelope_recipients::email.eq(email))
+        .select(schema::envelope_recipients::id)
         .first::<String>(conn)
     {
         Ok(id) => Ok(id),
         Err(_) => {
             let new_id = Uuid::new_v4().to_string();
-            diesel::insert_into(schema::recipients::table)
+            diesel::insert_into(schema::envelope_recipients::table)
                 .values((
-                    schema::recipients::id.eq(&new_id),
-                    schema::recipients::email.eq(email),
+                    schema::envelope_recipients::id.eq(&new_id),
+                    schema::envelope_recipients::email.eq(email),
                 ))
                 .execute(conn)?;
             Ok(new_id)
@@ -187,12 +184,44 @@ fn link_recipient_to_email(
     email_id: &str,
     recipient_id: &str,
 ) -> Result<(), DbError> {
-    diesel::insert_into(schema::email_recipients::table)
+    diesel::insert_into(schema::email_envelope_recipients::table)
         .values((
-            schema::email_recipients::email_id.eq(email_id),
-            schema::email_recipients::recipient_id.eq(recipient_id),
+            schema::email_envelope_recipients::email_id.eq(email_id),
+            schema::email_envelope_recipients::envelope_recipient_id.eq(recipient_id),
         ))
         .execute(conn)?;
+    Ok(())
+}
+
+fn save_headers(
+    conn: &mut DbConnection,
+    email_id: &str,
+    headers: &Option<serde_json::Value>,
+    now: chrono::NaiveDateTime,
+) -> Result<(), DbError> {
+    if let Some(headers_obj) = headers {
+        if let Some(headers_map) = headers_obj.as_object() {
+            for (header_name, header_values) in headers_map {
+                if let Some(values_array) = header_values.as_array() {
+                    for value in values_array {
+                        if let Some(header_value) = value.as_str() {
+                            let header_id = Uuid::new_v4().to_string();
+                            let new_header = Header {
+                                id: header_id,
+                                email_id: email_id.to_string(),
+                                name: header_name.clone(),
+                                value: header_value.to_string(),
+                                created_at: now,
+                            };
+                            diesel::insert_into(schema::headers::table)
+                                .values(&new_header)
+                                .execute(conn)?;
+                        }
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 
