@@ -56,6 +56,7 @@ pub mod counts;
 pub mod email;
 pub mod emails;
 pub mod save_email;
+pub mod search_query;
 
 #[derive(HasQuery, Clone)]
 #[diesel(table_name = schema::emails)]

@@ -10,11 +10,20 @@
       @resize:end="handleResizeEnd"
     >
       <div class="p-4">
-        <TextInput
-          v-model="searchStore.query"
-          placeholder="Search"
-          :icon="MagnifyingGlassIcon"
-        />
+        <div class="relative">
+          <TextInput
+            v-model="searchStore.query"
+            placeholder="Search"
+            :icon="MagnifyingGlassIcon"
+          />
+          <button
+            type="button"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 focus:outline-none underline cursor-pointer"
+            @click="showHelpModal = true"
+          >
+            help
+          </button>
+        </div>
       </div>
 
       <div
@@ -82,6 +91,8 @@
         </template>
       </div>
     </vue-resizable>
+
+    <SearchHelpModal v-model:is-open="showHelpModal" />
   </div>
 </template>
 
@@ -96,6 +107,7 @@
   import type { EmailListRecord } from '@/types/email'
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
+  import SearchHelpModal from './SearchHelpModal.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
 
@@ -108,6 +120,7 @@
   const emit = defineEmits<{ 'load-more': [] }>()
 
   const searchStore = useSearchStore()
+  const showHelpModal = ref(false)
 
   const formatDate = (dateString: string) => {
     const today = new Date()
