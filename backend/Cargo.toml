@@ -21,9 +21,10 @@ diesel = { version = "2.3.5", features = ["sqlite", "chrono", "r2d2", "serde_jso
 diesel_migrations = { version = "2.2.0", features = ["sqlite"] }
 libsqlite3-sys = { version = "0.31", features = ["bundled"] }
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "net", "io-util", "sync"] }
+socket2 = { version = "0.5", features = ["all"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["fs", "trace", "compression-gzip"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "compression-gzip", "timeout"] }
 mail-parser = "0.11"
 smtp-proto = "0.2"
 uuid = { version = "1.18", features = ["v4"] }

@@ -33,18 +33,48 @@ pub async fn websocket_handler(ws: WebSocketUpgrade, State(state): State<AppStat
 }
 
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
-    let (mut sender, _receiver) = socket.split();
+    let (mut sender, mut receiver) = socket.split();
     let mut rx = state.broadcast.subscribe();
 
-    // Forward broadcast messages to the WebSocket client
-    while let Ok(msg) = rx.recv().await {
-        let json_msg = serde_json::to_string(&msg).unwrap_or_else(|_| "{}".to_string());
-        if sender
-            .send(axum::extract::ws::Message::Text(json_msg.into()))
-            .await
-            .is_err()
-        {
-            break;
+    loop {
+        tokio::select! {
+            msg_result = rx.recv() => {
+                match msg_result {
+                    Ok(msg) => {
+                        let json_msg = serde_json::to_string(&msg).unwrap_or_else(|_| "{}".to_string());
+                        if sender
+                            .send(axum::extract::ws::Message::Text(json_msg.into()))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Err(_) => {
+                        break;
+                    }
+                }
+            }
+            client_msg = receiver.next() => {
+                match client_msg {
+                    Some(Ok(msg)) => {
+                        match msg {
+                            axum::extract::ws::Message::Ping(payload) => {
+                                if sender.send(axum::extract::ws::Message::Pong(payload)).await.is_err() {
+                                    break;
+                                }
+                            }
+                            axum::extract::ws::Message::Close(_) => {
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
+                    Some(Err(_)) | None => {
+                        break;
+                    }
+                }
+            }
         }
     }
 }
