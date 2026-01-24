@@ -6,10 +6,10 @@ pub mod ws;
 use crate::db::{DbPool, ListQuery};
 use axum::{Router, http::StatusCode, routing::get};
 use serde::Deserialize;
-use tower_http::compression::CompressionLayer;
-
 use std::net::SocketAddr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use tower_http::compression::CompressionLayer;
+use tower_http::timeout::TimeoutLayer;
 use tracing::info;
 use ws::BroadcastSender;
 
@@ -74,12 +74,32 @@ pub async fn run(
         .route("/api/emails/{id}/rendered", get(routes::get_rendered_email))
         .route("/api/attachments/{id}", get(routes::get_attachment))
         .route("/ws", get(ws::websocket_handler))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(30),
+        ))
         .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(log_http_request));
 
     let app = frontend::attach_frontend_routes(app).with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    use socket2::{Domain, Socket, TcpKeepalive, Type};
+    use std::time::Duration as StdDuration;
+
+    let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
+    socket.set_reuse_address(true)?;
+    socket.set_tcp_keepalive(
+        &TcpKeepalive::new()
+            .with_time(StdDuration::from_secs(60))
+            .with_interval(StdDuration::from_secs(10))
+            .with_retries(3),
+    )?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(1024)?;
+
+    let listener = tokio::net::TcpListener::from_std(socket.into())?;
+
     info!(component = "web", "Web server listening on {}", addr);
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())

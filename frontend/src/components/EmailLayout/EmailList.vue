@@ -10,14 +10,28 @@
       @resize:end="handleResizeEnd"
     >
       <div class="p-4">
-        <TextInput
-          v-model="searchStore.query"
-          placeholder="Search"
-          :icon="MagnifyingGlassIcon"
-        />
+        <div class="relative">
+          <TextInput
+            v-model="searchStore.query"
+            placeholder="Search"
+            :icon="MagnifyingGlassIcon"
+          />
+          <button
+            type="button"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 focus:outline-none underline cursor-pointer"
+            @click="showHelpModal = true"
+          >
+            help
+          </button>
+        </div>
       </div>
 
-      <div class="overflow-y-auto px-4 flex flex-col gap-2">
+      <div
+        ref="emailListContainer"
+        tabindex="0"
+        class="overflow-y-auto px-4 flex flex-col gap-2 focus:outline-none"
+        @keydown="handleKeyDown"
+      >
         <div
           v-if="loading && emails.length === 0"
           class="flex items-center justify-center p-8"
@@ -60,7 +74,9 @@
               <div class="flex flex-row gap-2">
                 <div class="text-gray-500">To:</div>
                 <div class="truncate">
-                  {{ parseAndDecodeHeaderValues(mail.headers?.To).join(', ') }}
+                  {{
+                    parseAndDecodeHeaderValues(mail.to_header || []).join(', ')
+                  }}
                 </div>
               </div>
             </div>
@@ -75,11 +91,13 @@
         </template>
       </div>
     </vue-resizable>
+
+    <SearchHelpModal v-model:is-open="showHelpModal" />
   </div>
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+  import { ref, computed, nextTick, watch } from 'vue'
   import { useIntersectionObserver } from '@vueuse/core'
   import { useMailLayoutStore } from '@/stores/MailLayout'
   import { useSearchStore } from '@/stores/Search'
@@ -89,6 +107,7 @@
   import type { EmailListRecord } from '@/types/email'
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
   import Spinner from '@/components/shared/Spinner/Spinner.vue'
+  import SearchHelpModal from './SearchHelpModal.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
 
@@ -97,10 +116,11 @@
     loading: boolean
   }
 
-  defineProps<Props>()
+  const props = defineProps<Props>()
   const emit = defineEmits<{ 'load-more': [] }>()
 
   const searchStore = useSearchStore()
+  const showHelpModal = ref(false)
 
   const formatDate = (dateString: string) => {
     const today = new Date()
@@ -141,6 +161,34 @@
       router.push(`/emails/inbox/email/${id}`)
     }
   }
+
+  const openMailByIndex = (index: number) => {
+    if (index < 0 || index >= props.emails.length) return
+    openMail(props.emails[index]!.id)
+    nextTick(() => emailListContainer.value?.focus())
+  }
+
+  const emailListContainer = ref<HTMLElement | null>(null)
+  const currentEmailIndex = computed(() => {
+    const currentId = route.params.id as string | undefined
+    if (!currentId) return -1
+    return props.emails.findIndex(email => email.id === currentId)
+  })
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      openMailByIndex(currentEmailIndex.value + 1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      openMailByIndex(currentEmailIndex.value - 1)
+    }
+  }
+
+  watch(
+    () => route.params.id,
+    () => nextTick(() => emailListContainer.value?.focus())
+  )
 
   const loadMoreSentinel = ref<HTMLElement | null>(null)
 

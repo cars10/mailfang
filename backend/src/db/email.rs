@@ -6,6 +6,7 @@ use crate::{
         AttachmentPartial, AttachmentRecord, DbConnection, DbError, EmailPartial, EmailRecord,
         vacuum_database,
     },
+    models::Header,
     schema,
 };
 
@@ -18,11 +19,24 @@ pub fn get_email(conn: &mut DbConnection, email_id: &str) -> Result<EmailRecord,
         .filter(schema::attachments::email_id.eq(&email.id))
         .load::<AttachmentPartial>(conn)?;
 
-    let recipients: Vec<String> = schema::email_recipients::table
-        .inner_join(schema::recipients::table)
-        .filter(schema::email_recipients::email_id.eq(&email.id))
-        .select(schema::recipients::email)
+    let recipients: Vec<String> = schema::email_envelope_recipients::table
+        .inner_join(schema::envelope_recipients::table)
+        .filter(schema::email_envelope_recipients::email_id.eq(&email.id))
+        .select(schema::envelope_recipients::email)
         .load(conn)?;
+
+    let headers: Vec<Header> = schema::headers::table
+        .filter(schema::headers::email_id.eq(&email.id))
+        .load::<Header>(conn)?;
+
+    let mut grouped_headers: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for header in headers {
+        grouped_headers
+            .entry(header.name)
+            .or_insert_with(Vec::new)
+            .push(header.value);
+    }
 
     let attachment_records = attachments
         .into_iter()
@@ -42,9 +56,9 @@ pub fn get_email(conn: &mut DbConnection, email_id: &str) -> Result<EmailRecord,
         message_id: email.message_id,
         subject: email.subject,
         date: email.date,
-        headers: email.headers,
+        headers: grouped_headers,
         created_at: email.created_at,
-        from: email.from,
+        envelope_from: email.envelope_from,
         size: email.size,
         body_text: email.body_text,
         body_html: email.body_html,
