@@ -10,15 +10,24 @@
     >
       <div class="p-4 h-full overflow-y-auto flex flex-col justify-between">
         <div>
-          <h1
-            class="text-2xl font-bold mb-4 text-center flex flex-row items-center justify-center"
+          <a
+            href="/"
+            class="flex flex-row items-center justify-center group mb-4"
           >
-            <EnvelopeIcon
+            <Logo
               v-if="!sidebarCollapsed"
-              class="h-6 w-6 min-w-4 mr-2"
+              class="h-6 w-6 min-w-4 mr-2 group-hover:text-primary"
             />
-            {{ headerText }}
-          </h1>
+
+            <h1
+              class="text-2xl text-center flex flex-row items-center justify-center"
+            >
+              <template v-if="sidebarCollapsed">MF</template>
+              <template v-else
+                >Mail<span class="font-bold">Fang</span></template
+              >
+            </h1>
+          </a>
 
           <div class="flex flex-col gap-2">
             <router-link
@@ -84,8 +93,8 @@
     TrashIcon,
     GlobeAltIcon,
     CodeBracketIcon,
-    EnvelopeIcon,
   } from '@heroicons/vue/24/outline'
+  import Logo from '@/logo.svg'
   import type { EmailCounts } from '@/types/email'
   import { apiClient } from '@/api/client'
   import VueResizable from 'vue-resizable'
@@ -105,10 +114,6 @@
   const sidebarCollapsed = computed(() => {
     return mailLayoutStore.sidebarWidth < 140
   })
-
-  const headerText = computed(() =>
-    sidebarCollapsed.value ? 'MF' : 'MailFang'
-  )
 
   const handleDoubleClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement
