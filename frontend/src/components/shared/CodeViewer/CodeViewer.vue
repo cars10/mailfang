@@ -9,7 +9,7 @@
     </div>
     <div class="p-4 rounded-sm overflow-auto bg-gray-900 text-gray-100">
       <pre
-        class="text-xs font-mono whitespace-pre-wrap word-wrap break-all overflow-x-auto max-w-full"
+        class="text-sm font-mono whitespace-pre-wrap word-wrap break-all overflow-x-auto max-w-full"
         v-html="highlightedContent"
       ></pre>
     </div>
