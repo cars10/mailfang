@@ -1,4 +1,5 @@
 use axum::{Json, extract::State};
+use std::env;
 
 use crate::csp::inject_csp_meta_tag;
 use crate::db::{ListParams, ListQuery};
@@ -91,6 +92,19 @@ pub async fn delete_email(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, WebError> {
+    if demo_mode() {
+        state
+            .broadcast
+            .send(WebSocketMessage {
+                event: WebSocketEvent::EmailDeleted,
+                email: None,
+                email_id: Some(id),
+                recipients: None,
+            })
+            .ok();
+        return Ok(StatusCode::NO_CONTENT);
+    }
+
     let mut conn = state.pool.get()?;
     let rows_affected = db::email::delete_email(&mut conn, &id)?;
 
@@ -111,9 +125,21 @@ pub async fn delete_email(
 }
 
 pub async fn delete_emails(State(state): State<AppState>) -> Result<StatusCode, WebError> {
+    if demo_mode() {
+        return Ok(StatusCode::NO_CONTENT);
+    }
+
     let mut conn = state.pool.get()?;
     db::emails::delete_all_emails(&mut conn)?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+fn demo_mode() -> bool {
+    if let Ok(val) = env::var("DEMO_MODE") {
+        val == "true"
+    } else {
+        false
+    }
 }
 
 pub async fn get_raw_email(
