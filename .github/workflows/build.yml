@@ -5,7 +5,7 @@ on:
 
   push:
     branches:
-    - release
+      - release
 
 jobs:
   build:
@@ -42,3 +42,10 @@ jobs:
             ghcr.io/cars10/mailfang:latest
             cars10/mailfang:${{ steps.package-version.outputs.current-version }}
             ghcr.io/cars10/mailfang:${{ steps.package-version.outputs.current-version }}
+
+      - name: deploy
+        run: |
+          curl -X POST https://autodok.cars10k.de/update \
+            -H "Content-Type: application/json" \
+            -H "Authorization: ${{ secrets.AUTODOK_API_KEY }}" \
+            -d '{"container": "mailfang", "image": "cars10/mailfang:latest"}'
