@@ -2,6 +2,8 @@
 
 MailFang is the email testing tool that you've been waiting for. It provides a local smtp server and a modern webui to view your emails.
 
+**[Live Demo](https://demo.mailfang.com)**
+
 ## About
 
 Use MailFang locally during development, deploy it in a sandbox, or use it in your staging environment instead of sending emails to an external service. Regain control of your data and eliminate unnecessary costs.
