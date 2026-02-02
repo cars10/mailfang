@@ -1,8 +1,13 @@
 <template>
   <div class="flex flex-row h-full">
-    <EmailSidebar :counts="counts" />
+    <EmailSidebar v-if="!reducedMode" :counts="counts" />
 
-    <EmailList :emails="emails" :loading="loading" @load-more="fetchNextPage" />
+    <EmailList
+      v-if="!reducedMode"
+      :emails="emails"
+      :loading="loading"
+      @load-more="fetchNextPage"
+    />
 
     <div class="grow">
       <RouterView />
@@ -11,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue'
+  import { ref, onMounted, watch, computed } from 'vue'
   import { useWebSocket } from '@/composables/useWebSocket'
   import { apiClient } from '@/api/client'
   import { useSearchStore } from '@/stores/Search'
@@ -32,6 +37,11 @@
   const currentPage = ref(1)
   const hasNextPage = ref(false)
   let searchTimeout: number | null = null
+
+  const reducedMode = computed(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    return searchParams.get('reduced') === 'true'
+  })
 
   const fetchSidebar = async () => {
     try {
