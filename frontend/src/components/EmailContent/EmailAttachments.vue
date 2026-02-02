@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="flex flex-col gap-2">
     <div v-if="attachments.length > 0" class="flex flex-wrap gap-2">
       <a
         v-for="attachment in attachments"
@@ -20,12 +20,6 @@
     </div>
 
     <div v-if="inlineAttachments.length > 0" class="flex flex-wrap gap-2">
-      <div
-        class="text-gray-500 flex items-center cursor-help"
-        title="Inline attachments are usually images displayed inside the email content and not typically intended to be downloaded."
-      >
-        Inline attachments:
-      </div>
       <a
         v-for="attachment in inlineAttachments"
         :key="attachment.id"
@@ -37,10 +31,13 @@
           :is="getAttachmentIcon(attachment.content_type)"
           class="h-4 w-4 text-gray-600"
         />
-        <span>{{ attachment.filename || 'unnamed' }}</span>
-        <span class="text-xs text-gray-600"
-          >({{ formatSize(attachment.size) }})</span
-        >
+        <span>
+          {{ attachment.filename || 'unnamed' }}
+          <small class="text-gray-500">(inline)</small>
+        </span>
+        <span class="text-xs text-gray-600">
+          ({{ formatSize(attachment.size) }})
+        </span>
       </a>
     </div>
   </div>

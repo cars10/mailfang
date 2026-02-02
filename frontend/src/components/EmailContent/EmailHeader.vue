@@ -145,6 +145,11 @@
     }
   }
 
+  const demoMode = computed(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    return searchParams.get('demo') === 'true'
+  })
+
   const menuItems = computed<DropdownMenuItem[]>(() => [
     {
       id: 'download',
@@ -157,7 +162,7 @@
       id: 'delete',
       label: 'Delete',
       icon: TrashIcon,
-      disabled: loadingDelete.value,
+      disabled: loadingDelete.value || demoMode.value,
       onClick: handleDelete,
     },
   ])
