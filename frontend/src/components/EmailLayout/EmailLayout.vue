@@ -144,30 +144,35 @@
     if (index !== -1) emails.value.splice(index, 1)
   }
 
-  useWebSocket(
-    {
-      onMessage: event => {
-        try {
-          const message = JSON.parse(event.data)
-          if (message.event === 'new_mail' && message.email) {
-            handleNewMail(message.email, message.recipients)
-          } else if (message.event === 'email_read' && message.email) {
-            handleEmailRead(message.email)
-          } else if (message.event === 'email_deleted' && message.email_id) {
-            handleEmailDeleted(message.email_id)
-          }
-        } catch (err) {
-          console.error('Failed to parse websocket message:', err)
-        }
-      },
-    },
-    {
-      autoConnect: true,
-    }
-  )
-
   onMounted(() => {
     fetchInitialMails()
+
+    if (!reducedMode.value) {
+      useWebSocket(
+        {
+          onMessage: event => {
+            try {
+              const message = JSON.parse(event.data)
+              if (message.event === 'new_mail' && message.email) {
+                handleNewMail(message.email, message.recipients)
+              } else if (message.event === 'email_read' && message.email) {
+                handleEmailRead(message.email)
+              } else if (
+                message.event === 'email_deleted' &&
+                message.email_id
+              ) {
+                handleEmailDeleted(message.email_id)
+              }
+            } catch (err) {
+              console.error('Failed to parse websocket message:', err)
+            }
+          },
+        },
+        {
+          autoConnect: true,
+        }
+      )
+    }
   })
 
   watch(
