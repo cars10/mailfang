@@ -40,7 +40,6 @@ export function useWebSocket(
     ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
-      console.log('WebSocket connected')
       callbacks.onOpen?.()
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout)
