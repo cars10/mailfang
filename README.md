@@ -159,4 +159,4 @@ Run `make dev` to start the frontend and backend, access the frontend on `http:/
 
 ## License
 
-MIT
+GNU GPL v3
