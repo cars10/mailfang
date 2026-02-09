@@ -8,7 +8,7 @@
       <div class="text-gray-500">{{ error }}</div>
     </div>
 
-    <div v-else-if="email" class="flex flex-col h-full overflow-y-auto">
+    <div v-else-if="email" class="flex flex-col min-h-0 h-full">
       <EmailHeader :email="email" />
 
       <Tabs v-model="viewMode" :tabs="tabs" />

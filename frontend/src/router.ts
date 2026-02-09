@@ -36,7 +36,7 @@ const routes = [
       } else {
         next({ path: '/emails/inbox' })
       }
-    }
+    },
   },
   { path: '/emails/:id/fullscreen', component: FullscreenEmailView },
   { path: '/:pathMatch(.*)*', redirect: '/' },
