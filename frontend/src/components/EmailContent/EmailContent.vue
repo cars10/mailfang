@@ -53,45 +53,49 @@
       </div>
     </div>
 
-    <div
-      v-if="viewMode === 'text' && email.body_text"
-      class="grow whitespace-pre-wrap p-4"
-    >
-      {{ email.body_text }}
-    </div>
-
-    <div v-if="viewMode === 'html' && email.body_html" class="p-4 grow">
-      <CodeViewer :content="email.body_html" language="xml" />
-    </div>
-
-    <div v-if="viewMode === 'raw'" class="p-4 grow">
-      <div v-if="loadingRaw" class="flex items-center justify-center h-full">
-        <Spinner size="6" />
+    <div v-else class="min-h-0 h-auto overflow-y-auto basis-0 grow shrink">
+      <div
+        v-if="viewMode === 'text' && email.body_text"
+        class="grow min-h-0 flex flex-col p-4"
+      >
+        <div class="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap">
+          {{ email.body_text }}
+        </div>
       </div>
-      <CodeViewer v-else :content="rawContent" />
-    </div>
 
-    <EmailSmtpHeaders v-if="viewMode === 'headers'" :email="email" />
+      <div v-if="viewMode === 'html' && email.body_html" class="p-4 grow">
+        <CodeViewer :content="email.body_html" language="xml" />
+      </div>
 
-    <div v-if="viewMode === 'envelope'" class="p-6">
-      <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-3">
-        <div class="text-gray-500 select-text text-right text-nowrap py-1">
-          MAIL FROM
+      <div v-if="viewMode === 'raw'" class="p-4 grow">
+        <div v-if="loadingRaw" class="flex items-center justify-center h-full">
+          <Spinner size="6" />
         </div>
-        <div class="text-gray-600 select-text w-fit">
-          <CopyBadge :text="email.envelope_from || '(empty)'" />
-        </div>
+        <CodeViewer v-else :content="rawContent" />
+      </div>
 
-        <div class="text-gray-500 select-text text-right text-nowrap py-1">
-          RCPT TO
-        </div>
-        <div class="w-fit">
-          <div
-            v-for="recipient in email.recipients"
-            :key="recipient"
-            class="text-gray-600 select-text w-fit"
-          >
-            <CopyBadge :text="recipient" />
+      <EmailSmtpHeaders v-if="viewMode === 'headers'" :email="email" />
+
+      <div v-if="viewMode === 'envelope'" class="p-6">
+        <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-3">
+          <div class="text-gray-500 select-text text-right text-nowrap py-1">
+            MAIL FROM
+          </div>
+          <div class="text-gray-600 select-text w-fit">
+            <CopyBadge :text="email.envelope_from || '(empty)'" />
+          </div>
+
+          <div class="text-gray-500 select-text text-right text-nowrap py-1">
+            RCPT TO
+          </div>
+          <div class="w-fit">
+            <div
+              v-for="recipient in email.recipients"
+              :key="recipient"
+              class="text-gray-600 select-text w-fit"
+            >
+              <CopyBadge :text="recipient" />
+            </div>
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@
       @load-more="fetchNextPage"
     />
 
-    <div class="grow">
+    <div class="grow min-h-0 flex flex-col">
       <RouterView />
     </div>
   </div>
