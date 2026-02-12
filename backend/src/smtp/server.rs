@@ -1,13 +1,13 @@
 use super::parser::{EmailAttachment, parse_email_details};
 use chrono::Utc;
 use futures::{SinkExt, StreamExt};
-use r2d2::Pool;
 use rand::Rng;
 use smtp_proto::Request;
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Semaphore;
 use tokio_util::codec::{Framed, LinesCodec, LinesCodecError};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -26,29 +26,6 @@ pub type Result<T> = std::result::Result<T, SmtpError>;
 
 /// Callback function type for handling received emails
 pub type OnReceiveCallback = Arc<dyn Fn(&Email) + Send + Sync>;
-
-#[derive(Debug)]
-struct ConnectionSlot;
-
-#[derive(Debug)]
-struct ConnectionManager;
-
-impl r2d2::ManageConnection for ConnectionManager {
-    type Connection = ConnectionSlot;
-    type Error = std::io::Error;
-
-    fn connect(&self) -> std::result::Result<Self::Connection, Self::Error> {
-        Ok(ConnectionSlot)
-    }
-
-    fn is_valid(&self, _conn: &mut Self::Connection) -> std::result::Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn has_broken(&self, _conn: &mut Self::Connection) -> bool {
-        false
-    }
-}
 
 pub struct SmtpServer {
     addr: SocketAddr,
@@ -96,18 +73,8 @@ impl SmtpServer {
         let listener = TcpListener::bind(self.addr).await?;
         let on_receive = self.on_receive.clone();
 
-        let manager = ConnectionManager;
-        let pool = Arc::new(
-            Pool::builder()
-                .max_size(self.max_connections as u32)
-                .build(manager)
-                .map_err(|e| {
-                    SmtpError::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Failed to create connection pool: {}", e),
-                    ))
-                })?,
-        );
+        // Only accept new TCP connections when we have a slot (enforces max_connections at accept time)
+        let semaphore = Arc::new(Semaphore::new(self.max_connections));
 
         info!(
             component = "smtp",
@@ -115,32 +82,21 @@ impl SmtpServer {
         );
 
         loop {
+            // Wait for a free slot before accepting; this ensures we never accept more than max_connections
+            let permit = semaphore
+                .clone()
+                .acquire_owned()
+                .await
+                .map_err(|_| SmtpError::Io(std::io::Error::new(std::io::ErrorKind::Other, "semaphore closed")))?;
+
             let (stream, peer) = listener.accept().await?;
             info!(component = "smtp", peer = %peer, "Connection accepted");
             let on_receive = on_receive.clone();
-            let pool = pool.clone();
-
             let auth_username = self.auth_username.clone();
             let auth_password = self.auth_password.clone();
+
             tokio::spawn(async move {
-                let connection_result = tokio::task::spawn_blocking({
-                    let pool = pool.clone();
-                    move || pool.get()
-                })
-                .await;
-
-                let _ = match connection_result {
-                    Ok(Ok(conn)) => conn,
-                    Ok(Err(e)) => {
-                        error!(component = "smtp", peer = %peer, "Failed to get connection from pool: {}", e);
-                        return;
-                    }
-                    Err(e) => {
-                        error!(component = "smtp", peer = %peer, "Failed to spawn blocking task: {}", e);
-                        return;
-                    }
-                };
-
+                let _permit = permit; // released when task ends
                 if let Err(err) =
                     handle_connection(stream, on_receive, auth_username, auth_password, peer).await
                 {
