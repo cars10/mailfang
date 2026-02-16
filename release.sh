@@ -17,7 +17,7 @@ cd backend
 sed -e "s/\"version\":\s\".*\"/\"version\": \"$VERSION\"/" -i Cargo.toml
 cd ..
 
-git commit -am "bumps version to $VERSION"
+git commit --allow-empty -am "bumps version to $VERSION"
 
 git push
 
@@ -26,7 +26,7 @@ git merge main -m "automatic merge to finish v$VERSION"
 
 git push
 
-git tag -a "v$VERSION"
+git tag -a "v$VERSION" -m "v$VERSION"
 git push --tags
 
 git checkout main

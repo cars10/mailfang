@@ -19,8 +19,25 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
     for ConnectionOptions
 {
     fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
-        conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 30000;")
-            .map_err(diesel::r2d2::Error::QueryError)
+        let map_err = |e| diesel::r2d2::Error::QueryError(e);
+        // Sleep if the database is busy, up to 2 seconds.
+        conn.batch_execute("PRAGMA busy_timeout = 2000;")
+            .map_err(map_err)?;
+        // Better write-concurrency.
+        conn.batch_execute("PRAGMA journal_mode = WAL;")
+            .map_err(map_err)?;
+        // Fsync only in critical moments.
+        conn.batch_execute("PRAGMA synchronous = NORMAL;")
+            .map_err(map_err)?;
+        // Write WAL changes back every 1000 pages (~1MB WAL). May affect readers if increased.
+        conn.batch_execute("PRAGMA wal_autocheckpoint = 1000;")
+            .map_err(map_err)?;
+        // Free space by truncating possibly massive WAL files from the last run.
+        conn.batch_execute("PRAGMA wal_checkpoint(TRUNCATE);")
+            .map_err(map_err)?;
+        conn.batch_execute("PRAGMA foreign_keys = ON;")
+            .map_err(map_err)?;
+        Ok(())
     }
 }
 

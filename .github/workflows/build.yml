@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -28,12 +28,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: martinbeentjes/npm-get-version-action@v1.3.1
+      - uses: martinbeentjes/npm-get-version-action@v1
         id: package-version
         with:
           path: frontend
 
-      - uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           push: true
@@ -42,6 +43,28 @@ jobs:
             ghcr.io/cars10/mailfang:latest
             cars10/mailfang:${{ steps.package-version.outputs.current-version }}
             ghcr.io/cars10/mailfang:${{ steps.package-version.outputs.current-version }}
+
+      - name: extract binary from image
+        run: |
+          docker create --name extract cars10/mailfang:${{ steps.package-version.outputs.current-version }}
+          docker cp extract:/usr/bin/mailfang ./mailfang-linux-amd64
+          docker rm extract
+          chmod +x ./mailfang-linux-amd64
+
+      - name: prepare release notes from changelog
+        run: |
+          # Extract first version block (newest) from CHANGELOG.md
+          awk 'found && /^## [0-9]/ { exit } /^## [0-9]/ { found=1 } found' CHANGELOG.md > release_notes.txt
+
+      - name: create and publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.package-version.outputs.current-version }}"
+          gh release create "v${VERSION}" \
+            ./mailfang-linux-amd64 \
+            --title "v${VERSION}" \
+            --notes-file release_notes.txt
 
       - name: deploy
         run: |
