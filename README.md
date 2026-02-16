@@ -58,10 +58,10 @@ The services will be reachable via:
 ### Binary
 
 1. Download the latest binary from the [releases page](https://github.com/cars10/mailfang/releases)
-2. Set executable permissions: `chmod +x ./mailfang`
-3. Run MailFang: `./mailfang`
+2. Set executable permissions: `chmod +x ./mailfang-linux-amd64`
+3. Run MailFang: `./mailfang-linux-amd64`
 
-You can view all available configuration options by running `./mailfang --help`.
+You can view all available configuration options by running `./mailfang-linux-amd64 --help`.
 
 ## Sending emails to MailFang
 
