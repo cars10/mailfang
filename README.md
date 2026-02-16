@@ -2,6 +2,8 @@
 
 MailFang is the email testing tool that you've been waiting for. It provides a local smtp server and a modern webui to view your emails.
 
+![MailFang screenshot](screenshot.jpg)
+
 **[Live Demo](https://demo.mailfang.com)**
 
 ## About
@@ -45,7 +47,7 @@ Use the [existing image](https://hub.docker.com/r/cars10/mailfang) from docker h
 docker run --name mailfang \
            -p 3000:3000 \
            -p 2525:2525 \
-           -d cars10/mailfang
+           cars10/mailfang
 ```
 
 The services will be reachable via:
@@ -71,7 +73,6 @@ To send emails to Mailfang simply configure your email service to use the respec
 config.action_mailer.smtp_settings = {
   address:         "0.0.0.0",
   port:            2525,
-  domain:          "example.com",
   authentication:  "plain"
 }
 ```
@@ -96,7 +97,7 @@ You can configure MailFang via command-line arguments or environment variables. 
 
 ### Available Options
 
-All configuration options are optional. The smtp server will accept all connection if no credentials are configured.
+All configuration options are optional. The smtp server will accept all connections if no credentials are configured.
 
 | Option | Environment Variable | Description | Binary Default | Docker Default |
 |--------|---------------------|-------------|----------------|----------------|
@@ -128,7 +129,7 @@ docker run --name mailfang \
 
 MailFang saves emails in a local sqlite database. To persist the data:
 
-When running via docker use `DATABASE_URL=sqlite:///data/mailfang.db` and mount a volume to `/data`.
+When running via docker mount a volume to `/data`.
 
 The binary defaults to `./mailfang.db`, change it by using `--database-url sqlite:///path/to/mailfang.db` or via environment variables `DATABASE_URL=sqlite:///path/to/mailfang.db`
 
@@ -143,7 +144,7 @@ It supports the following authorization methods:
 * `LOGIN`
 * `CRAM-MD5`
 
-By default it only accepts a maximum of `4` emails at the same time. This is configurable via `--smtp-max-connections 12` or `SMTP_MAX_CONNECTIONS=12`.
+By default it accepts a maximum of `4` open connections at the same time. This is configurable via `--smtp-max-connections 12` or `SMTP_MAX_CONNECTIONS=12`.
 
 ## Development
 
@@ -156,6 +157,14 @@ By default it only accepts a maximum of `4` emails at the same time. This is con
 ### Running
 
 Run `make dev` to start the frontend and backend, access the frontend on `http://localhost:5173`.
+
+## Alternatives & Inspiration
+
+MailFang is inspired partly by tools like:
+
+* mailcatcher
+* mailhog
+* JSX Email
 
 ## License
 
