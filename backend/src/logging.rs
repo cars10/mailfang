@@ -101,8 +101,8 @@ pub fn init() {
     // Always filter out verbose SQL logs by setting sqlx to warn level
     // This suppresses the long query logs while still showing errors
     let filter = base_filter
-        .add_directive("sqlx=warn".parse().unwrap())
-        .add_directive("diesel=warn".parse().unwrap());
+        .add_directive("sqlx=warn".parse().expect("valid log directive"))
+        .add_directive("diesel=warn".parse().expect("valid log directive"));
 
     tracing_subscriber::registry()
         .with(

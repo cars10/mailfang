@@ -120,8 +120,8 @@ impl From<ListParams> for ListQuery {
     fn from(params: ListParams) -> Self {
         Self {
             search: params.search,
-            page: params.page.unwrap_or(1),
-            per_page: params.per_page.unwrap_or(20),
+            page: params.page.unwrap_or(1).max(1),
+            per_page: params.per_page.unwrap_or(20).clamp(1, 100),
         }
     }
 }
