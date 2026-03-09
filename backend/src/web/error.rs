@@ -16,9 +16,9 @@ pub enum WebError {
 impl IntoResponse for WebError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            WebError::Database(err) => (
+            WebError::Database(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Database error: {}", err),
+                "An internal error occurred".to_string(),
             ),
             WebError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string()),
             WebError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "IO error".to_string()),

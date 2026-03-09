@@ -51,9 +51,10 @@ pub fn parse_search_query(query: &str) -> ParsedSearchQuery {
     let mut matched_ranges = Vec::new();
 
     for cap in field_pattern.captures_iter(query) {
-        let field_name = cap.get(1).unwrap().as_str();
-        let value = cap.get(2).unwrap().as_str();
-        let full_match = cap.get(0).unwrap();
+        let (field_name, value, full_match) = match (cap.get(1), cap.get(2), cap.get(0)) {
+            (Some(m1), Some(m2), Some(m0)) => (m1.as_str(), m2.as_str(), m0.range()),
+            _ => continue,
+        };
 
         if let Some(field) = SearchField::from_str(field_name) {
             let normalized_field = match field {
@@ -64,7 +65,7 @@ pub fn parse_search_query(query: &str) -> ParsedSearchQuery {
                 field: normalized_field,
                 value: value.to_string(),
             });
-            matched_ranges.push(full_match.range());
+            matched_ranges.push(full_match);
         }
     }
 
