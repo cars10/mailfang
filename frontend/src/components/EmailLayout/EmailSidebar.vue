@@ -78,6 +78,10 @@
             <GlobeAltIcon class="h-4 w-4 min-w-4 min-h-4" />
             <div v-if="!sidebarCollapsed">mailfang.com</div>
           </a>
+
+          <div v-if="!sidebarCollapsed" class="text-sm text-gray-500 font-mono">
+            v{{ appVersion }}
+          </div>
         </div>
       </div>
     </vue-resizable>
@@ -110,6 +114,7 @@
   const router = useRouter()
   const mailLayoutStore = useMailLayoutStore()
   const loadingDeleteAll = ref(false)
+  const appVersion = __APP_VERSION__
 
   const sidebarCollapsed = computed(() => {
     return mailLayoutStore.sidebarWidth < 140
