@@ -20,25 +20,40 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
 {
     fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
         let map_err = |e| diesel::r2d2::Error::QueryError(e);
-        // Sleep if the database is busy, up to 2 seconds.
-        conn.batch_execute("PRAGMA busy_timeout = 2000;")
-            .map_err(map_err)?;
-        // Better write-concurrency.
-        conn.batch_execute("PRAGMA journal_mode = WAL;")
-            .map_err(map_err)?;
-        // Fsync only in critical moments.
-        conn.batch_execute("PRAGMA synchronous = NORMAL;")
-            .map_err(map_err)?;
-        // Write WAL changes back every 1000 pages (~1MB WAL). May affect readers if increased.
-        conn.batch_execute("PRAGMA wal_autocheckpoint = 1000;")
-            .map_err(map_err)?;
-        // Free space by truncating possibly massive WAL files from the last run.
-        conn.batch_execute("PRAGMA wal_checkpoint(TRUNCATE);")
-            .map_err(map_err)?;
-        conn.batch_execute("PRAGMA foreign_keys = ON;")
-            .map_err(map_err)?;
+
+        let session_queries = [
+            "PRAGMA foreign_keys = ON;",
+            "PRAGMA busy_timeout = 5000;", // Increased to 5s for prod safety
+            "PRAGMA cache_size = -64000;", // ~64MB cache (negative number is in KiB)
+            "PRAGMA mmap_size = 268435456;", // 256MB Memory Mapping
+            "PRAGMA temp_store = MEMORY;", // Fast temp tables
+        ];
+
+        for query in session_queries {
+            conn.batch_execute(query).map_err(map_err)?;
+        }
+
         Ok(())
     }
+}
+
+fn sqlite_global_setup(url: &str) -> Result<(), io::Error> {
+    let mut conn =
+        SqliteConnection::establish(url).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+    let global_queries = [
+        "PRAGMA journal_mode = WAL;",
+        "PRAGMA synchronous = NORMAL;",
+        "PRAGMA wal_autocheckpoint = 1000;",
+        "PRAGMA wal_checkpoint(TRUNCATE);",
+    ];
+
+    for query in global_queries {
+        conn.batch_execute(query)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    }
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -95,8 +110,12 @@ async fn setup_database(config: &config::Config) -> Result<db::DbPool, io::Error
         .database_url
         .trim_start_matches("sqlite://")
         .trim_start_matches("sqlite:");
+
+    sqlite_global_setup(url)?;
+
     let manager = ConnectionManager::<SqliteConnection>::new(url);
     let pool = r2d2::Pool::builder()
+        .max_size(5)
         .connection_customizer(Box::new(ConnectionOptions))
         .build(manager)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
