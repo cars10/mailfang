@@ -40,7 +40,6 @@ FROM alpine:latest AS runtime
 RUN apk add --no-cache \
     ca-certificates \
     sqlite \
-    curl \
     && rm -rf /var/cache/apk/*
 
 RUN addgroup -g 1000 appuser && \
@@ -59,7 +58,5 @@ USER appuser
 ENV DATABASE_URL=sqlite:///data/mailfang.db
 ENV SMTP_HOST=0.0.0.0:2525
 ENV WEB_HOST=0.0.0.0:3000
-ENV WEB_PORT=3000
-ENV SMTP_PORT=2525
 
 CMD ["mailfang"]
