@@ -1,7 +1,15 @@
 <template>
   <div class="px-6 py-4">
-    <div class="flex justify-between gap-4 mb-2">
-      <h1 class="text-3xl text-gray-900 font-weight-semibold mb-4">
+    <div class="flex justify-between gap-4">
+      <h1
+        class="text-3xl text-gray-900 font-weight-semibold mb-4"
+        style="
+          font-size: clamp(20px, 3.5vw, 32px);
+          flex-shrink: 1;
+          min-width: 0;
+          white-space: nowrap;
+        "
+      >
         {{ email.subject || '(No Subject)' }}
       </h1>
 
