@@ -1,8 +1,8 @@
 use regex::{Captures, Regex};
 
 pub fn insert_into_head(html: &str, content: &str) -> String {
-    let head_regex = Regex::new(r"(?i)<head[^>]*>").unwrap();
-    let html_regex = Regex::new(r"(?i)<html[^>]*>").unwrap();
+    let head_regex = Regex::new(r"(?i)<head[^>]*>").expect("valid head regex");
+    let html_regex = Regex::new(r"(?i)<html[^>]*>").expect("valid html regex");
 
     if head_regex.is_match(html) {
         head_regex

@@ -83,11 +83,12 @@ impl SmtpServer {
 
         loop {
             // Wait for a free slot before accepting; this ensures we never accept more than max_connections
-            let permit = semaphore
-                .clone()
-                .acquire_owned()
-                .await
-                .map_err(|_| SmtpError::Io(std::io::Error::new(std::io::ErrorKind::Other, "semaphore closed")))?;
+            let permit = semaphore.clone().acquire_owned().await.map_err(|_| {
+                SmtpError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "semaphore closed",
+                ))
+            })?;
 
             let (stream, peer) = listener.accept().await?;
             info!(component = "smtp", peer = %peer, "Connection accepted");

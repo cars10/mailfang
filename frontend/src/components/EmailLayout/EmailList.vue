@@ -166,6 +166,7 @@
     if (index < 0 || index >= props.emails.length) return
     openMail(props.emails[index]!.id)
     nextTick(() => emailListContainer.value?.focus())
+    if (index === props.emails.length - 1) emit('load-more')
   }
 
   const emailListContainer = ref<HTMLElement | null>(null)
@@ -176,13 +177,17 @@
   })
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      openMailByIndex(currentEmailIndex.value + 1)
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      openMailByIndex(currentEmailIndex.value - 1)
-    }
+    let index = currentEmailIndex.value
+    if (event.key === 'ArrowDown') index++
+    else if (event.key === 'ArrowUp') index--
+    else return
+
+    if (index < 0 || index >= props.emails.length) return
+    event.preventDefault()
+    openMailByIndex(index)
+    emailListContainer.value?.children[index]?.scrollIntoView({
+      block: 'nearest',
+    })
   }
 
   watch(
