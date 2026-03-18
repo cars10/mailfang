@@ -48,15 +48,15 @@
 
           <EmailSidebarInboxes :counts="props.counts" />
 
-          <div class="flex flex-col gap-2 mt-4">
+          <div class="mt-4">
             <button
-              class="btn flex flex-row items-center gap-2"
+              class="btn btn--small1 flex flex-row items-center gap-2 w-auto"
               :class="{ 'justify-center': sidebarCollapsed }"
               :disabled="loadingDeleteAll"
               @click="handleDeleteAll"
             >
               <TrashIcon class="h-4 w-4 min-w-4" />
-              <div v-if="!sidebarCollapsed">Clear</div>
+              <div v-if="!sidebarCollapsed">Delete all emails</div>
             </button>
           </div>
         </div>
