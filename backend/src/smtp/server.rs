@@ -1,7 +1,7 @@
 use super::parser::{EmailAttachment, parse_email_details};
 use chrono::Utc;
 use futures::{SinkExt, StreamExt};
-use rand::Rng;
+use rand::RngExt;
 use smtp_proto::Request;
 use std::fmt;
 use std::net::SocketAddr;
@@ -560,8 +560,8 @@ impl Session {
 
     fn generate_cram_md5_challenge(&self) -> String {
         use base64::Engine;
-        let mut rng = rand::thread_rng();
-        let random_bytes: Vec<u8> = (0..16).map(|_| rng.r#gen::<u8>()).collect();
+        let mut rng = rand::rng();
+        let random_bytes: Vec<u8> = (0..16).map(|_| rng.random::<u8>()).collect();
         let challenge = format!(
             "<{}@mailfang.com>",
             base64::engine::general_purpose::STANDARD.encode(&random_bytes)
