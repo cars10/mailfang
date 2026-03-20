@@ -48,9 +48,9 @@
 
           <EmailSidebarInboxes :counts="props.counts" />
 
-          <div class="mt-4">
+          <div class="my-4">
             <button
-              class="btn btn--small1 flex flex-row items-center gap-2 w-auto"
+              class="btn btn--small flex flex-row items-center gap-2 w-auto"
               :class="{ 'justify-center': sidebarCollapsed }"
               :disabled="loadingDeleteAll"
               @click="handleDeleteAll"

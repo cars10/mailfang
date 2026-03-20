@@ -1,81 +1,52 @@
 <template>
   <div class="mt-2">
-    <div
-      class="flex w-full flex-row items-center justify-between gap-2 rounded-sm h-6"
-    >
-      <button
-        class="flex flex-row shrink grow items-center gap-2 hover:bg-gray-200 rounded-sm px-2 py-1 cursor-pointer overflow-hidden min-w-4"
-        type="button"
-        @click="
-          mailLayoutStore.recipientsCollapsed =
-            !mailLayoutStore.recipientsCollapsed
-        "
-      >
-        <ChevronRightIcon
-          v-if="mailLayoutStore.recipientsCollapsed"
-          class="h-4 shrink-0"
-        />
-        <ChevronDownIcon v-else class="h-4 shrink-0" />
-
-        <div v-if="!searchFocused" class="truncate min-w-0">Inboxes</div>
-      </button>
-      <div v-if="!sidebarCollapsed" class="ml-auto">
-        <TextInput
-          v-model="searchTerm"
-          placeholder="Search inboxes..."
-          :icon="MagnifyingGlassIcon"
-          :expandable="true"
-          expanded-width="100%"
-          @focus="searchFocused = true"
-          @blur="searchFocused = false"
-          @keydown.escape="searchTerm = ''"
-        />
+    <div class="flex flex-row items-center justify-between gap-2 h-6 mt-6 mb-2">
+      <div v-if="!searchFocused" class="truncate min-w-0 mx-1 py-2">
+        Inboxes
       </div>
+      <button
+        v-if="!searchFocused && !sidebarCollapsed"
+        class="btn btn--icon btn--small"
+        @click="focusSearchInput"
+      >
+        <MagnifyingGlassIcon class="h-4 w-4" />
+      </button>
+      <TextInput
+        v-if="searchFocused"
+        ref="searchInput"
+        v-model="searchTerm"
+        class="w-full"
+        dense
+        placeholder="Search..."
+        @blur="searchFocused = false"
+        @keydown.escape="searchTerm = ''"
+      />
     </div>
 
-    <vue-resizable
-      v-if="!mailLayoutStore.recipientsCollapsed"
-      :active="['b']"
-      :min-height="20"
-      :height="mailLayoutStore.recipientsHeight"
-      :style="{ width: '100%' }"
-      class="mt-2 pb-1 overflow-hidden border-b border-gray-300 w-full"
-      @dblclick="handleDoubleClick"
-      @resize:end="handleRecipientsResizeEnd"
-    >
-      <div class="flex flex-col gap-1 overflow-y-auto max-h-full p-1">
-        <router-link
-          v-for="recipient in filteredRecipients"
-          :key="recipient.recipient"
-          :to="`/emails/inbox/${encodeURIComponent(recipient.recipient)}`"
-          :title="recipient.recipient"
-          active-class="text-primary bg-gray-200"
-          class="flex flex-row gap-1 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-sm text-[#222]"
-        >
-          <span class="truncate">{{ recipient.recipient }}</span>
-          <span class="text-xs text-gray-600 font-mono">
-            {{ recipient.count }}
-          </span>
-        </router-link>
-      </div>
-    </vue-resizable>
+    <div class="flex flex-col gap-1 overflow-y-auto max-h-full p-1">
+      <router-link
+        v-for="recipient in filteredRecipients"
+        :key="recipient.recipient"
+        :to="`/emails/inbox/${encodeURIComponent(recipient.recipient)}`"
+        :title="recipient.recipient"
+        active-class="text-primary bg-gray-200"
+        class="flex flex-row gap-1 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-sm text-[#222]"
+      >
+        <span class="truncate">{{ recipient.recipient }}</span>
+        <span class="text-xs text-gray-600 font-mono">
+          {{ recipient.count }}
+        </span>
+      </router-link>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import {
-    DEFAULT_RECIPIENTS_HEIGHT,
-    useMailLayoutStore,
-  } from '@/stores/MailLayout'
-  import {
-    ChevronRightIcon,
-    ChevronDownIcon,
-    MagnifyingGlassIcon,
-  } from '@heroicons/vue/24/outline'
+  import { useMailLayoutStore } from '@/stores/MailLayout'
+  import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
   import TextInput from '@/components/shared/TextInput/TextInput.vue'
-  import VueResizable from 'vue-resizable'
   import type { EmailCounts } from '@/types/email'
-  import { computed, ref } from 'vue'
+  import { computed, nextTick, ref } from 'vue'
 
   interface Props {
     counts: EmailCounts
@@ -87,6 +58,14 @@
   const searchFocused = ref(false)
 
   const searchTerm = ref('')
+  const searchInput = ref<InstanceType<typeof TextInput> | null>(null)
+
+  const focusSearchInput = () => {
+    searchFocused.value = true
+    nextTick(() => {
+      searchInput.value?.focus()
+    })
+  }
 
   const sidebarCollapsed = computed(() => {
     return mailLayoutStore.sidebarWidth < 140
@@ -101,15 +80,4 @@
       recipient.recipient.toLowerCase().includes(term)
     )
   })
-
-  const handleRecipientsResizeEnd = ({ height }: { height: number }) => {
-    mailLayoutStore.recipientsHeight = height
-  }
-
-  const handleDoubleClick = (event: MouseEvent) => {
-    const target = event.target as HTMLElement
-    if (target.classList.contains('resizable-b')) {
-      mailLayoutStore.recipientsHeight = DEFAULT_RECIPIENTS_HEIGHT
-    }
-  }
 </script>

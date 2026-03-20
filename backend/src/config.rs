@@ -1,5 +1,5 @@
-use std::io;
 use clap::Parser;
+use std::io;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use tracing::info;
