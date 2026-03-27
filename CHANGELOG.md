@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- fix binding to hostnames
+- adds dark theme
+- close modal on ESC
+- always show all inboxes
+- misc fixes and improvements
+
 ## 1.1.0
 
 - adds favicon
