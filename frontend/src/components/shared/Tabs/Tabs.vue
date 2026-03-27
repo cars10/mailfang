@@ -36,6 +36,6 @@
   const tabClass = (tabId: string) => {
     return props.modelValue === tabId
       ? ' border-primary font-medium'
-      : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
+      : 'text-app-gray-500 border-transparent hover:text-app-gray-700 hover:border-app-gray-300'
   }
 </script>

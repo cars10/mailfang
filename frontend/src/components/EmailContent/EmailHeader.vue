@@ -1,21 +1,16 @@
 <template>
-  <div class="px-6 py-4">
+  <div class="px-6 py-3">
     <div class="flex justify-between gap-4">
-      <h1
-        class="text-3xl text-gray-900 font-weight-semibold mb-4"
-        style="
-          font-size: clamp(20px, 3.5vw, 32px);
-          flex-shrink: 1;
-          min-width: 0;
-          white-space: nowrap;
-        "
-      >
+      <h1 class="text-2xl text-app-gray-900 font-weight-semibold mb-4">
         {{ email.subject || '(No Subject)' }}
       </h1>
 
       <div class="flex items-start gap-3">
-        <div class="text-gray-500 flex align-center text-nowrap py-2">
-          {{ formatDate(email.created_at) }}
+        <div
+          class="text-app-gray-500 flex align-center text-nowrap py-2"
+          :title="formatDate(email.created_at)"
+        >
+          {{ todayTimeOrDate(email.created_at) }}
         </div>
         <DropdownMenu :items="menuItems" />
       </div>
@@ -23,23 +18,23 @@
 
     <div class="grid grid-cols-[max-content_1fr] gap-x-2">
       <template v-if="displayFrom">
-        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+        <div class="text-app-gray-500 select-text text-right text-nowrap py-1">
           From
         </div>
-        <div class="text-gray-600 select-text w-fit">
+        <div class="text-app-gray-600 select-text w-fit">
           <CopyBadge :text="displayFrom" />
         </div>
       </template>
 
       <template v-if="displayTo.length > 0">
-        <div class="text-gray-500 select-text text-right text-nowrap py-1">
+        <div class="text-app-gray-500 select-text text-right text-nowrap py-1">
           To
         </div>
         <div class="w-fit">
           <div
             v-for="recipient in displayTo"
             :key="recipient"
-            class="text-gray-600 select-text w-fit"
+            class="text-app-gray-600 select-text w-fit"
           >
             <CopyBadge :text="recipient" />
           </div>
@@ -47,14 +42,14 @@
       </template>
 
       <template v-if="displayCc.length > 0">
-        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+        <div class="text-right text-app-gray-500 select-text text-nowrap py-1">
           CC
         </div>
         <div class="w-fit">
           <div
             v-for="cc in displayCc"
             :key="cc"
-            class="text-gray-600 select-text w-fit"
+            class="text-app-gray-600 select-text w-fit"
           >
             <CopyBadge :text="cc" />
           </div>
@@ -62,14 +57,14 @@
       </template>
 
       <template v-if="displayBcc.length > 0">
-        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+        <div class="text-right text-app-gray-500 select-text text-nowrap py-1">
           BCC
         </div>
         <div class="w-fit">
           <div
             v-for="bcc in displayBcc"
             :key="bcc"
-            class="text-gray-600 select-text w-fit"
+            class="text-app-gray-600 select-text w-fit"
           >
             <CopyBadge :text="bcc" />
           </div>
@@ -77,14 +72,14 @@
       </template>
 
       <template v-if="displayReplyTo.length > 0">
-        <div class="text-right text-gray-500 select-text text-nowrap py-1">
+        <div class="text-right text-app-gray-500 select-text text-nowrap py-1">
           Reply-To
         </div>
         <div class="w-fit">
           <div
             v-for="replyTo in displayReplyTo"
             :key="replyTo"
-            class="text-gray-600 select-text w-fit"
+            class="text-app-gray-600 select-text w-fit"
           >
             <CopyBadge :text="replyTo" />
           </div>
@@ -104,6 +99,7 @@
   import { apiClient } from '@/api/client'
   import { TrashIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
+  import { todayTimeOrDate, formatDate } from '@/helpers/date'
 
   const props = defineProps<{ email: EmailRecord }>()
 
@@ -174,20 +170,6 @@
       onClick: handleDelete,
     },
   ])
-
-  const formatDate = (dateString: string) => {
-    const today = new Date()
-    const mailDate = new Date(dateString)
-
-    const isToday =
-      mailDate.getDate() === today.getDate() &&
-      mailDate.getMonth() === today.getMonth() &&
-      mailDate.getFullYear() === today.getFullYear()
-
-    return isToday
-      ? mailDate.toLocaleTimeString()
-      : mailDate.toLocaleDateString()
-  }
 
   const displayFrom = computed(() => {
     return parseAndDecodeHeaderValues(props.email.headers?.From)?.[0]

@@ -3,12 +3,15 @@
     <button
       id="toggle"
       type="button"
-      class="cursor-pointer relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-      :class="[sizeClasses.button, modelValue ? 'bg-primary' : 'bg-gray-300']"
+      class="cursor-pointer relative inline-flex items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-app-white"
+      :class="[
+        sizeClasses.button,
+        modelValue ? 'bg-primary' : 'bg-app-gray-300',
+      ]"
       @click="toggle"
     >
       <span
-        class="inline-block transform rounded-full bg-white transition-transform shadow-sm"
+        class="inline-block transform rounded-full bg-app-white transition-transform shadow-sm"
         :class="[
           sizeClasses.knob,
           modelValue ? sizeClasses.translateOn : sizeClasses.translateOff,
@@ -17,7 +20,7 @@
     </button>
     <label
       v-if="label"
-      class="cursor-pointer text-sm text-gray-600 h-full flex items-center"
+      class="cursor-pointer text-sm text-app-gray-600 h-full flex items-center"
       for="toggle"
     >
       {{ label }}

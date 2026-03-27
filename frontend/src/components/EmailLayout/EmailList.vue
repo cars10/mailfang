@@ -1,5 +1,5 @@
 <template>
-  <div class="shadow-lg z-20 border-r border-gray-200">
+  <div class="shadow-lg z-20 border-r border-app-gray-200 bg-card-bg">
     <vue-resizable
       :active="['r']"
       :min-width="350"
@@ -18,7 +18,7 @@
           />
           <button
             type="button"
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 focus:outline-none hover:underline cursor-pointer"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-app-gray-500 hover:text-app-gray-700 focus:outline-none hover:underline cursor-pointer"
             @click="showHelpModal = true"
           >
             help
@@ -43,14 +43,14 @@
           v-else-if="emails.length === 0"
           class="flex items-center justify-center p-8"
         >
-          <div class="text-gray-500">No emails found</div>
+          <div class="text-app-gray-500">No emails found</div>
         </div>
 
         <template v-else>
           <div
             v-for="mail in emails"
             :key="mail.id"
-            :class="`border-l-4 ${route.params.id === mail.id ? 'border-l-primary bg-gray-50' : 'border-l-transparent'} p-2 gap-4 hover:cursor-pointer hover:bg-gray-100 w-full rounded-sm`"
+            :class="`border-l-4 ${route.params.id === mail.id ? 'border-l-primary' : 'border-l-transparent'} p-2 gap-4 hover:cursor-pointer hover:bg-app-gray-100 w-full rounded-sm`"
             @click="openMail(mail.id)"
           >
             <div class="flex flex-col grow">
@@ -62,17 +62,18 @@
                   {{ mail.subject || '(No Subject)' }}
                 </div>
                 <div
-                  class="flex items-center gap-1 text-sm text-gray-500 text-nowrap"
+                  :title="formatDate(mail.created_at)"
+                  class="flex items-center gap-1 text-sm text-app-gray-500 text-nowrap"
                 >
                   <PaperClipIcon
                     v-if="mail.has_attachments"
-                    class="h-4 text-gray-500"
+                    class="h-4 text-app-gray-500"
                   />
-                  {{ formatDate(mail.created_at) }}
+                  {{ todayTimeOrDate(mail.created_at) }}
                 </div>
               </div>
               <div class="flex flex-row gap-2">
-                <div class="text-gray-500">To:</div>
+                <div class="text-app-gray-500">To:</div>
                 <div class="truncate">
                   {{
                     parseAndDecodeHeaderValues(mail.to_header || []).join(', ')
@@ -110,6 +111,7 @@
   import SearchHelpModal from './SearchHelpModal.vue'
   import { DEFAULT_INBOX_WIDTH } from '@/stores/MailLayout'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
+  import { todayTimeOrDate, formatDate } from '@/helpers/date'
 
   interface Props {
     emails: EmailListRecord[]
@@ -121,22 +123,6 @@
 
   const searchStore = useSearchStore()
   const showHelpModal = ref(false)
-
-  const formatDate = (dateString: string) => {
-    const today = new Date()
-    const mailDate = new Date(dateString)
-
-    const isToday =
-      mailDate.getDate() === today.getDate() &&
-      mailDate.getMonth() === today.getMonth() &&
-      mailDate.getFullYear() === today.getFullYear()
-
-    if (isToday) {
-      return mailDate.toLocaleTimeString()
-    } else {
-      return mailDate.toLocaleDateString()
-    }
-  }
 
   const route = useRoute()
   const router = useRouter()

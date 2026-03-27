@@ -29,11 +29,11 @@
         :key="recipient.recipient"
         :to="`/emails/inbox/${encodeURIComponent(recipient.recipient)}`"
         :title="recipient.recipient"
-        active-class="text-primary bg-gray-200"
-        class="flex flex-row gap-1 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-sm text-[#222]"
+        active-class="text-primary bg-app-gray-200"
+        class="flex flex-row gap-1 items-center justify-between hover:bg-app-gray-200 px-2 py-1 rounded-sm text-sm"
       >
         <span class="truncate">{{ recipient.recipient }}</span>
-        <span class="text-xs text-gray-600 font-mono">
+        <span class="text-xs text-app-gray-600 font-mono">
           {{ recipient.count }}
         </span>
       </router-link>

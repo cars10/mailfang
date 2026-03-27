@@ -3,7 +3,7 @@
     <div class="flex items-center mb-3">
       <button class="btn" @click="handleCopy">
         <ClipboardIcon v-if="!copied" class="h-4 w-4" />
-        <CheckIcon v-else class="h-4 w-4" />
+        <CheckIcon v-else class="h-4 w-4 text-app-green" />
         Copy
       </button>
     </div>

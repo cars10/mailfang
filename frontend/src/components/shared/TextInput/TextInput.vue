@@ -6,7 +6,7 @@
       :value="modelValue"
       type="text"
       :placeholder="placeholder"
-      class="rounded-sm border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-hidden"
+      class="rounded-sm border border-app-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-hidden"
       :class="inputClasses"
       @input="handleInput"
       @keydown.escape="handleEscape"
@@ -41,7 +41,7 @@
   }>()
 
   const iconClasses = computed(() => {
-    return `absolute pointer-events-none z-10 left-3 h-5 w-5 text-gray-400`
+    return `absolute pointer-events-none z-10 left-3 h-5 w-5 text-app-gray-500`
   })
 
   const inputEl = ref<HTMLInputElement | null>(null)

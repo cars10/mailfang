@@ -40,7 +40,7 @@
       <div
         v-else
         :class="renderedWrapperClass"
-        class="border-t border-gray-200"
+        class="border-t border-app-gray-200"
       >
         <div :class="iframeWrapperClass" :style="iframeWrapperStyle">
           <iframe
@@ -78,21 +78,25 @@
 
       <div v-if="viewMode === 'envelope'" class="p-6">
         <div class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-3">
-          <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          <div
+            class="text-app-gray-500 select-text text-right text-nowrap py-1"
+          >
             MAIL FROM
           </div>
-          <div class="text-gray-600 select-text w-fit">
+          <div class="text-app-gray-600 select-text w-fit">
             <CopyBadge :text="email.envelope_from || '(empty)'" />
           </div>
 
-          <div class="text-gray-500 select-text text-right text-nowrap py-1">
+          <div
+            class="text-app-gray-500 select-text text-right text-nowrap py-1"
+          >
             RCPT TO
           </div>
           <div class="w-fit">
             <div
               v-for="recipient in email.recipients"
               :key="recipient"
-              class="text-gray-600 select-text w-fit"
+              class="text-app-gray-600 select-text w-fit"
             >
               <CopyBadge :text="recipient" />
             </div>
@@ -161,9 +165,9 @@
   const iframeWrapperClass = computed(() => {
     switch (mailLayoutStore.screenSize) {
       case ScreenSize.Mobile:
-        return 'h-full w-full bg-gray-900 border-4 border-gray-800 p-2 rounded-[2.5rem] '
+        return 'h-full w-full bg-black p-4 rounded-[2.5rem] '
       case ScreenSize.Tablet:
-        return 'h-full w-full bg-gray-900 border-4 border-gray-800 p-3 rounded-xl '
+        return 'h-full w-full bg-black p-4 rounded-xl '
       case ScreenSize.Desktop:
         return 'h-full w-full'
       default:
@@ -201,11 +205,11 @@
   const iframeClass = computed(() => {
     switch (mailLayoutStore.screenSize) {
       case ScreenSize.Mobile:
-        return 'border-0 bg-white rounded-4xl w-full h-full'
+        return 'rounded-4xl w-full h-full'
       case ScreenSize.Tablet:
-        return 'border-0 bg-white rounded-lg h-full w-full'
+        return 'rounded-lg h-full w-full'
       case ScreenSize.Desktop:
-        return 'border-0 bg-white h-full w-full'
+        return 'h-full w-full'
       default:
         return ''
     }

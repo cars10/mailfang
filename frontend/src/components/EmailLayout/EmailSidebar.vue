@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-100 shrink-0">
+  <div class="bg-app-gray-100 shrink-0">
     <vue-resizable
       :active="['r']"
       :min-width="64"
@@ -20,7 +20,7 @@
             />
 
             <h1
-              class="text-2xl text-center flex flex-row items-center justify-center"
+              class="text-2xl text-app-gray-900 text-center flex flex-row items-center justify-center"
             >
               <template v-if="sidebarCollapsed">MF</template>
               <template v-else
@@ -33,14 +33,14 @@
             <router-link
               :to="'/emails/inbox'"
               title="All emails"
-              active-class="text-primary bg-gray-200"
-              class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-gray-200 px-2 py-1 rounded-sm text-[#222] overflow-hidden min-w-4"
+              active-class="text-primary bg-app-gray-200"
+              class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-app-gray-200 px-2 py-1 rounded-sm overflow-hidden min-w-4"
             >
               <div class="flex flex-row gap-2 items-center min-w-4">
                 <InboxIcon class="h-4 w-4 shrink-0" />
                 <div v-if="!sidebarCollapsed" class="truncate">All emails</div>
               </div>
-              <span class="text-sm text-gray-600 font-mono">
+              <span class="text-sm text-app-gray-600 font-mono">
                 {{ props.counts.inbox }}
               </span>
             </router-link>
@@ -62,10 +62,18 @@
         </div>
 
         <div class="flex flex-col gap-2">
+          <div
+            :class="[
+              'flex',
+              sidebarCollapsed ? 'justify-center' : 'justify-start',
+            ]"
+          >
+            <ThemeToggle />
+          </div>
           <a
             href="https://github.com/cars10/mailfang"
             target="_blank"
-            class="text-gray-800 hover:text-primary flex items-center gap-2 h-6"
+            class="hover:text-primary flex items-center gap-2 h-6"
           >
             <CodeBracketIcon class="h-4 w-4 min-w-4 min-h-4" />
             <div v-if="!sidebarCollapsed">GitHub</div>
@@ -73,13 +81,16 @@
           <a
             href="https://mailfang.com"
             target="_blank"
-            class="text-gray-800 hover:text-primary flex items-center gap-2 h-6"
+            class="hover:text-primary flex items-center gap-2 h-6"
           >
             <GlobeAltIcon class="h-4 w-4 min-w-4 min-h-4" />
             <div v-if="!sidebarCollapsed">mailfang.com</div>
           </a>
 
-          <div v-if="!sidebarCollapsed" class="text-sm text-gray-500 font-mono">
+          <div
+            v-if="!sidebarCollapsed"
+            class="text-sm text-app-gray-500 font-mono"
+          >
             v{{ appVersion }}
           </div>
         </div>
@@ -104,6 +115,7 @@
   import VueResizable from 'vue-resizable'
   import { DEFAULT_SIDEBAR_WIDTH } from '@/stores/MailLayout'
   import EmailSidebarInboxes from './EmailSidebarInboxes.vue'
+  import ThemeToggle from '@/components/shared/ThemeToggle/ThemeToggle.vue'
 
   interface Props {
     counts: EmailCounts

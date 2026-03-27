@@ -1,12 +1,12 @@
 <template>
   <div ref="dropdownRef" class="relative">
     <button type="button" class="btn btn--icon" @click="toggleMenu">
-      <EllipsisVerticalIcon class="h-5 w-5 text-gray-600" />
+      <EllipsisVerticalIcon class="h-5 w-5 text-app-gray-600" />
     </button>
 
     <div
       v-if="isOpen"
-      class="absolute right-0 mt-1 rounded-sm shadow-lg bg-white border border-gray-300 z-50"
+      class="absolute right-0 mt-1 rounded-sm shadow-lg bg-app-white border border-app-gray-300 z-50"
       role="menu"
       aria-orientation="vertical"
     >
@@ -15,7 +15,7 @@
           v-for="item in items"
           :key="item.id"
           type="button"
-          class="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:bg-gray-50 focus:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-gray-700"
+          class="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-app-gray-700 cursor-pointer hover:bg-app-gray-100 hover:text-app-gray-900 focus:outline-none focus:bg-app-gray-100 focus:text-app-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-app-white disabled:hover:text-app-gray-700"
           role="menuitem"
           :disabled="item.disabled"
           @click="handleItemClick(item)"
