@@ -31,8 +31,9 @@
 
 <script setup lang="ts">
   import { XMarkIcon } from '@heroicons/vue/24/outline'
+  import { onMounted, onUnmounted } from 'vue'
 
-  defineProps<{
+  const props = defineProps<{
     isOpen: boolean
     title: string
   }>()
@@ -42,4 +43,18 @@
   const close = () => {
     emit('update:isOpen', false)
   }
+
+  const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && props.isOpen) {
+      close()
+    }
+  }
+
+  onMounted(() => {
+    window.addEventListener('keydown', handleKeydown)
+  })
+
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown)
+  })
 </script>
