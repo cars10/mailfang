@@ -16,7 +16,7 @@
       <path
          id="rect1"
          transform="rotate(15,-201,199.7)"
-         style="fill:#ffffff"
+         fill="var(--color-card-bg)"
          d="m 112.6,37.400002 h 165.3 c 4.432,0 8,3.568 8,8 V 154.1 c 0,4.432 -3.568,8 -8,8 H 112.6 c -4.432,0 -8,-3.568 -8,-8 V 45.400002 c 0,-4.432 3.568,-8 8,-8 z" />
       <path
          stroke-linecap="round"
@@ -25,7 +25,7 @@
          id="path1" />
    </g>
    <path
-      fill="#ffffff"
+      fill="var(--color-card-bg)"
       stroke="currentColor"
       stroke-linecap="round"
       stroke-linejoin="round"
