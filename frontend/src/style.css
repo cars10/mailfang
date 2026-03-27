@@ -1,23 +1,56 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100..900&display=swap');
 
 @import 'tailwindcss';
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
   --default-font-family: 'Roboto', sans-serif;
   --default-font-optical-sizing: auto;
   --default-font-weight: 400;
   --default-font-style: normal;
+
   --color-primary: var(--color-cyan-600);
+  --color-body-bg: var(--color-gray-100);
+  --color-card-bg: #fff;
+
+  --color-app-white: var(--color-white);
+  --color-app-gray-100: var(--color-gray-100);
+  --color-app-gray-200: var(--color-gray-200);
+  --color-app-gray-300: var(--color-gray-300);
+  --color-app-gray-500: var(--color-gray-500);
+  --color-app-gray-600: var(--color-gray-600);
+  --color-app-gray-700: var(--color-gray-700);
+  --color-app-gray-900: var(--color-gray-900);
+  --color-app-green: var(--color-green-500);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-primary: var(--color-cyan-500);
+  --color-body-bg: #171717;
+  --color-card-bg: #262626;
+
+  --color-app-white: var(--color-gray-950);
+  --color-app-gray-100: #171717;
+  --color-app-gray-200: #262626;
+  --color-app-gray-300: var(--color-gray-600);
+  --color-app-gray-500: var(--color-gray-400);
+  --color-app-gray-600: var(--color-gray-300);
+  --color-app-gray-700: var(--color-gray-200);
+  --color-app-gray-900: var(--color-gray-50);
+  --color-app-green: var(--color-green-400);
 }
 
 html {
   height: 100%;
   font-size: 15px;
+  color-scheme: light;
 }
 
 body {
   min-height: 100%;
-  @apply flex;
+  @apply flex bg-body-bg text-app-gray-900;
 }
 
 #app {
@@ -29,14 +62,14 @@ body {
 .btn {
   @apply text-sm;
   @apply font-medium;
-  @apply text-gray-700;
+  @apply text-app-gray-700;
   @apply hover:shadow-sm;
-  @apply hover:text-gray-900;
-  @apply hover:bg-gray-50;
-  @apply border-gray-300;
+  @apply hover:text-app-gray-900;
+  @apply hover:bg-app-gray-100;
+  @apply border-app-gray-300;
   @apply focus:border-primary;
   @apply focus:outline-none;
-  @apply bg-white;
+  @apply bg-app-white;
   @apply rounded-sm;
   @apply flex;
   @apply items-center;

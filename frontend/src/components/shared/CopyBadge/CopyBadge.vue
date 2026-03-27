@@ -2,7 +2,7 @@
   <div
     v-if="text.length > 0"
     title="Click to copy"
-    class="group hover:bg-gray-100 py-1 px-2 rounded-xl cursor-pointer flex items-center gap-1 grow-0 w-fit break-all"
+    class="group hover:bg-app-gray-200 py-1 px-2 rounded-xl cursor-pointer flex items-center gap-1 grow-0 w-fit break-all"
     @click="handleCopy"
   >
     {{ text }}
@@ -12,7 +12,7 @@
     />
     <CheckIcon
       v-else
-      class="h-4 w-4 min-w-4 text-green-600 transition-opacity"
+      class="h-4 w-4 min-w-4 text-app-green transition-opacity"
     />
   </div>
 </template>

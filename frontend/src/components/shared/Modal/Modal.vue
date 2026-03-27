@@ -7,20 +7,20 @@
       @click.self="close"
     >
       <div
-        class="bg-white rounded-sm shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        class="bg-card-bg rounded-sm shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
       >
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-gray-900">{{ title }}</h2>
+            <h2 class="text-xl font-semibold text-app-gray-900">{{ title }}</h2>
             <button
               type="button"
-              class="text-gray-400 hover:text-gray-600 focus:outline-none"
+              class="text-app-gray-500 cursor-pointer hover:text-app-gray-600 focus:outline-none"
               @click="close"
             >
               <XMarkIcon class="h-6 w-6" />
             </button>
           </div>
-          <div class="text-gray-700">
+          <div class="text-app-gray-700">
             <slot />
           </div>
         </div>
@@ -31,8 +31,9 @@
 
 <script setup lang="ts">
   import { XMarkIcon } from '@heroicons/vue/24/outline'
+  import { onMounted, onUnmounted } from 'vue'
 
-  defineProps<{
+  const props = defineProps<{
     isOpen: boolean
     title: string
   }>()
@@ -42,4 +43,18 @@
   const close = () => {
     emit('update:isOpen', false)
   }
+
+  const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && props.isOpen) {
+      close()
+    }
+  }
+
+  onMounted(() => {
+    window.addEventListener('keydown', handleKeydown)
+  })
+
+  onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown)
+  })
 </script>

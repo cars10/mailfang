@@ -21,11 +21,6 @@ WORKDIR /app/backend
 
 COPY backend/Cargo.toml backend/Cargo.lock ./
 
-RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
-    rm -rf src
-
 COPY backend/src ./src
 COPY backend/migrations ./migrations
 

@@ -69,6 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = setup_database(&config).await?;
 
     let (broadcast_tx, _) = broadcast::channel::<web::ws::WebSocketMessage>(100);
+    let smtp_addr = config.smtp_socket_addr()?;
+    let web_addr = config.web_socket_addr()?;
 
     let db_for_smtp = db.clone();
     let broadcast_for_smtp = broadcast_tx.clone();
@@ -80,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     };
 
-    let smtp_server = smtp::SmtpServer::new(config.smtp_socket_addr())
+    let smtp_server = smtp::SmtpServer::new(smtp_addr)
         .max_connections(config.smtp_max_connections)
         .auth(config.smtp_username.clone(), config.smtp_password.clone())
         .on_receive(smtp_on_receive);
@@ -89,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         smtp_result = smtp_server.run() => {
             smtp_result?;
         }
-        web_result = web::run(config.web_socket_addr(), db, broadcast_tx) => {
+        web_result = web::run(web_addr, db, broadcast_tx) => {
             web_result?;
         }
     }

@@ -76,6 +76,7 @@ fn process_html_body(
         .to_string()
     };
 
+    processed_html = html::normalize_html_document(&processed_html);
     processed_html = add_base_tag(&processed_html);
 
     Some(processed_html)

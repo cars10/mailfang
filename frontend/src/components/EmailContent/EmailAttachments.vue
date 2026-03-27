@@ -10,10 +10,10 @@
       >
         <component
           :is="getAttachmentIcon(attachment.content_type)"
-          class="h-4 w-4 text-gray-600"
+          class="h-4 w-4 text-app-gray-600"
         />
         <span>{{ attachment.filename || 'unnamed' }}</span>
-        <span class="text-xs text-gray-600"
+        <span class="text-xs text-app-gray-600"
           >({{ formatSize(attachment.size) }})</span
         >
       </a>
@@ -29,13 +29,13 @@
       >
         <component
           :is="getAttachmentIcon(attachment.content_type)"
-          class="h-4 w-4 text-gray-600"
+          class="h-4 w-4 text-app-gray-600"
         />
         <span>
           {{ attachment.filename || 'unnamed' }}
-          <small class="text-gray-500">(inline)</small>
+          <small class="text-app-gray-500">(inline)</small>
         </span>
-        <span class="text-xs text-gray-600">
+        <span class="text-xs text-app-gray-600">
           ({{ formatSize(attachment.size) }})
         </span>
       </a>

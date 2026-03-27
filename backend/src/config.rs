@@ -1,5 +1,7 @@
 use clap::Parser;
+use std::io;
 use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use tracing::info;
 
 #[derive(Parser, Debug, Clone)]
@@ -58,12 +60,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn smtp_socket_addr(&self) -> SocketAddr {
-        self.smtp_host.parse().expect("valid SMTP listen addr")
+    pub fn smtp_socket_addr(&self) -> io::Result<SocketAddr> {
+        resolve_socket_addr("SMTP", &self.smtp_host)
     }
 
-    pub fn web_socket_addr(&self) -> SocketAddr {
-        self.web_host.parse().expect("valid web listen addr")
+    pub fn web_socket_addr(&self) -> io::Result<SocketAddr> {
+        resolve_socket_addr("web", &self.web_host)
     }
 
     pub fn print(&self) {
@@ -90,4 +92,23 @@ impl Config {
         info!(component = "config", "Web host: {}", self.web_host);
         info!(component = "config", "Database URL: {}", self.database_url);
     }
+}
+
+fn resolve_socket_addr(kind: &str, raw_addr: &str) -> io::Result<SocketAddr> {
+    let mut resolved = raw_addr.to_socket_addrs().map_err(|err| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("invalid {} listen address '{}': {}", kind, raw_addr, err),
+        )
+    })?;
+
+    resolved.next().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "{} listen address '{}' did not resolve to any socket addresses",
+                kind, raw_addr
+            ),
+        )
+    })
 }

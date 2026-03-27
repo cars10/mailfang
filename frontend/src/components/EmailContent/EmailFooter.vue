@@ -1,9 +1,9 @@
 <template>
-  <div class="p-4 border-t border-gray-200">
+  <div class="p-4 border-t border-app-gray-200">
     <div class="flex flex-row justify-between gap-4">
       <EmailAttachments v-if="email.attachments.length > 0" :email="email" />
 
-      <div class="text-gray-500 flex align-center text-nowrap">
+      <div class="text-app-gray-500 flex align-center text-nowrap">
         {{ formatSize(email.size) }} ({{ email.size }} bytes)
       </div>
     </div>

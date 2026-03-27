@@ -4,10 +4,10 @@
       <tbody>
         <template v-for="[key, values] in sortedHeaders" :key="key">
           <tr>
-            <td class="text-gray-700 select-text px-2 text-nowrap">
+            <td class="text-app-gray-700 select-text px-2 text-nowrap">
               {{ key }}:
             </td>
-            <td class="text-gray-600 select-text w-fit break-all px-2">
+            <td class="text-app-gray-600 select-text w-fit break-all px-2">
               <CopyBadge :text="values.join(', ')" />
             </td>
           </tr>
