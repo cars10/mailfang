@@ -1,23 +1,30 @@
 <template>
-  <div class="relative flex items-center">
+  <div
+    class="flex items-center gap-2 rounded-sm border border-app-gray-300 px-2 focus-within:ring-1 focus-within:ring-primary focus-within:border-primary overflow-hidden"
+  >
     <component :is="icon" v-if="icon" :class="iconClasses" />
-    <input
-      ref="inputEl"
-      :value="modelValue"
-      type="text"
-      :placeholder="placeholder"
-      class="rounded-sm border border-app-gray-300 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary overflow-hidden"
-      :class="inputClasses"
-      @input="handleInput"
-      @keydown.escape="handleEscape"
-      @focus="handleFocus"
-      @blur="handleBlur"
-    />
+    <div class="grow min-w-0">
+      <input
+        ref="inputEl"
+        :value="modelValue"
+        type="text"
+        :placeholder="placeholder"
+        class="w-full bg-transparent focus:outline-none"
+        :class="inputClasses"
+        @input="handleInput"
+        @keydown.escape="handleEscape"
+        @focus="handleFocus"
+        @blur="handleBlur"
+      />
+    </div>
+    <div v-if="hasRightSlot" class="shrink-0 flex items-center">
+      <slot name="right" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { computed, ref } from 'vue'
+  import { computed, ref, useSlots } from 'vue'
   import type { Component } from 'vue'
 
   const props = withDefaults(
@@ -40,17 +47,18 @@
     blur: [event: FocusEvent]
   }>()
 
+  const slots = useSlots()
+  const hasRightSlot = computed(() => Boolean(slots.right))
+
   const iconClasses = computed(() => {
-    return `absolute pointer-events-none z-10 left-3 h-5 w-5 text-app-gray-500`
+    return `h-5 w-5 shrink-0 text-app-gray-500`
   })
 
   const inputEl = ref<HTMLInputElement | null>(null)
 
   const inputClasses = computed(() => {
-    if (props.icon) {
-      return 'pl-10 pr-2 py-2 w-full'
-    }
-    return props.dense ? 'px-2 py-1 w-full' : 'px-2 py-2 w-full'
+    const verticalPadding = props.dense ? 'py-1' : 'py-2'
+    return `${verticalPadding}`
   })
 
   const handleInput = (event: Event) => {

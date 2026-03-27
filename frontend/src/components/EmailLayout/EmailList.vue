@@ -10,20 +10,21 @@
       @resize:end="handleResizeEnd"
     >
       <div class="p-4">
-        <div class="relative">
-          <TextInput
-            v-model="searchStore.query"
-            placeholder="Search"
-            :icon="MagnifyingGlassIcon"
-          />
-          <button
-            type="button"
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-app-gray-500 hover:text-app-gray-700 focus:outline-none hover:underline cursor-pointer"
-            @click="showHelpModal = true"
-          >
-            help
-          </button>
-        </div>
+        <TextInput
+          v-model="searchStore.query"
+          placeholder="Search"
+          :icon="MagnifyingGlassIcon"
+        >
+          <template #right>
+            <button
+              type="button"
+              class="text-xs text-app-gray-500 hover:text-app-gray-700 focus:outline-none hover:underline cursor-pointer"
+              @click="showHelpModal = true"
+            >
+              help
+            </button>
+          </template>
+        </TextInput>
       </div>
 
       <div
