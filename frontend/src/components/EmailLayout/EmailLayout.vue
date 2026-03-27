@@ -10,7 +10,6 @@
     />
 
     <div class="grow min-h-0 flex flex-col relative">
-      <ThemeToggle v-if="reducedMode" class="!absolute top-2 right-2 z-30" />
       <RouterView />
     </div>
   </div>
@@ -18,7 +17,6 @@
 
 <script setup lang="ts">
   import { ref, onMounted, watch, computed } from 'vue'
-  import ThemeToggle from '@/components/shared/ThemeToggle/ThemeToggle.vue'
   import { useWebSocket } from '@/composables/useWebSocket'
   import { apiClient } from '@/api/client'
   import { useSearchStore } from '@/stores/Search'
