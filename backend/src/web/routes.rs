@@ -3,6 +3,7 @@ use std::env;
 
 use crate::csp::inject_csp_meta_tag;
 use crate::db::{ListParams, ListQuery};
+use crate::html::normalize_html_document;
 use crate::web::error::WebError;
 use crate::web::ws::{WebSocketEvent, WebSocketMessage};
 use crate::web::{EmailListResponse, RenderedQueryParams};
@@ -178,6 +179,7 @@ pub async fn get_rendered_email(
         db::DbError::Diesel(diesel::result::Error::NotFound) => WebError::NotFound,
         _ => WebError::from(e),
     })?;
+    let rendered_html = normalize_html_document(&rendered_html);
 
     // Default to blocking remote content unless explicitly allowed
     let allow_remote_content = params.allow_remote_content.unwrap_or(false);

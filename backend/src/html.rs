@@ -1,5 +1,24 @@
 use regex::{Captures, Regex};
 
+pub fn normalize_html_document(html: &str) -> String {
+    let lower = html.to_lowercase();
+    let start_idx = lower.find("<!doctype html").or_else(|| lower.find("<html"));
+
+    let Some(start_idx) = start_idx else {
+        return html.to_string();
+    };
+
+    let trimmed_start = &html[start_idx..];
+    let trimmed_start_lower = &lower[start_idx..];
+
+    if let Some(end_idx) = trimmed_start_lower.rfind("</html>") {
+        let html_end = end_idx + "</html>".len();
+        trimmed_start[..html_end].to_string()
+    } else {
+        trimmed_start.to_string()
+    }
+}
+
 pub fn insert_into_head(html: &str, content: &str) -> String {
     let head_regex = Regex::new(r"(?i)<head[^>]*>").expect("valid head regex");
     let html_regex = Regex::new(r"(?i)<html[^>]*>").expect("valid html regex");
@@ -93,5 +112,24 @@ mod tests {
 
         assert!(result.contains("<meta test>"));
         assert!(result.contains("<title>Test</title>"));
+    }
+
+    #[test]
+    fn test_normalize_html_document_strips_wrappers() {
+        let html = "<p><div>tracking</div><!doctype html><html><head><meta name=\"x\"></head><body>Hi</body></html></p>";
+        let result = normalize_html_document(html);
+
+        assert!(result.starts_with("<!doctype html>"));
+        assert!(result.ends_with("</html>"));
+        assert!(!result.starts_with("<p>"));
+        assert!(!result.ends_with("</p>"));
+        assert!(result.contains("<head><meta name=\"x\"></head>"));
+    }
+
+    #[test]
+    fn test_normalize_html_document_returns_original_without_html_tag() {
+        let html = "<div>fragment</div>";
+        let result = normalize_html_document(html);
+        assert_eq!(result, html);
     }
 }
