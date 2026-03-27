@@ -2,7 +2,7 @@
   <Modal v-model:is-open="modalOpen" title="Search Help">
     <div class="space-y-6">
       <div>
-        <h3 class="text-lg font-semibold text-app-gray-900 mb-3">
+        <h3 class="text-lg font-medium text-app-gray-900 mb-3">
           Default Search
         </h3>
         <p class="text-app-gray-600 mb-2">
@@ -18,7 +18,7 @@
       </div>
 
       <div>
-        <h3 class="text-lg font-semibold text-app-gray-900 mb-3">
+        <h3 class="text-lg font-medium text-app-gray-900 mb-3">
           Field-Specific Filters
         </h3>
         <p class="text-app-gray-600 mb-3">
@@ -78,7 +78,7 @@
       </div>
 
       <div>
-        <h3 class="text-lg font-semibold text-app-gray-900 mb-3">Examples</h3>
+        <h3 class="text-lg font-medium text-app-gray-900 mb-3">Examples</h3>
         <ul class="space-y-2.5 text-app-gray-700">
           <li>
             <code

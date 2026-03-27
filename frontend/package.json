@@ -12,6 +12,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@fontsource/roboto": "^5.2.10",
     "@heroicons/vue": "^2.2",
     "@tailwindcss/vite": "^4.2",
     "@vueuse/core": "^14.2",
