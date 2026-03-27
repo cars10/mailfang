@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- fix logo in darkmode
+- include roboto font
+
 ## 1.2.0
 
 - fix binding to hostnames

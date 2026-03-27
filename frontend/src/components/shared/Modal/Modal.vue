@@ -11,7 +11,7 @@
       >
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-semibold text-app-gray-900">{{ title }}</h2>
+            <h2 class="text-xl font-medium text-app-gray-900">{{ title }}</h2>
             <button
               type="button"
               class="text-app-gray-500 cursor-pointer hover:text-app-gray-600 focus:outline-none"
