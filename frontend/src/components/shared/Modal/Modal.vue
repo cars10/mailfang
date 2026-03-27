@@ -7,7 +7,7 @@
       @click.self="close"
     >
       <div
-        class="bg-app-white rounded-sm shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        class="bg-card-bg rounded-sm shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
       >
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
