@@ -1,4 +1,4 @@
-use diesel::{ExpressionMethods, QueryDsl, Queryable, RunQueryDsl, dsl::count};
+use diesel::{ExpressionMethods, QueryDsl, Queryable, RunQueryDsl};
 
 use crate::{db::DbConnection, schema, web::error::DieselError};
 
@@ -24,14 +24,19 @@ pub fn get_email_counts(conn: &mut DbConnection) -> Result<EmailStats, DieselErr
         .get_result(conn)?;
 
     let recipients_stats: Vec<RecipientStats> = schema::envelope_recipients::table
-        .inner_join(schema::email_envelope_recipients::table)
-        .group_by(schema::envelope_recipients::id)
+        .filter(schema::envelope_recipients::email_count.gt(0))
+        .order_by(schema::envelope_recipients::email.asc())
         .select((
             schema::envelope_recipients::email,
-            count(schema::email_envelope_recipients::email_id),
+            schema::envelope_recipients::email_count,
         ))
-        .order_by(schema::envelope_recipients::email.asc())
-        .load::<RecipientStats>(conn)?;
+        .load::<(String, i32)>(conn)?
+        .into_iter()
+        .map(|(recipient, count)| RecipientStats {
+            recipient,
+            count: i64::from(count),
+        })
+        .collect();
 
     Ok(EmailStats {
         inbox: total_count,

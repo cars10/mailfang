@@ -285,7 +285,15 @@ pub fn get_emails_by_recipient(
 
 pub fn delete_all_emails(conn: &mut DbConnection) -> Result<usize, DieselError> {
     let affected = conn.transaction::<_, DieselError, _>(|conn| {
-        diesel::delete(schema::emails::table).execute(conn)
+        let affected = diesel::delete(schema::emails::table).execute(conn)?;
+
+        if affected > 0 {
+            diesel::update(schema::envelope_recipients::table)
+                .set(schema::envelope_recipients::email_count.eq(0))
+                .execute(conn)?;
+        }
+
+        Ok(affected)
     })?;
 
     if affected > 0 {
