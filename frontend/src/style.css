@@ -41,7 +41,7 @@ html[data-theme='dark'] {
 }
 
 html {
-  height: 100%;
+  min-height: 100%;
   font-size: 15px;
   color-scheme: light;
 }
@@ -52,9 +52,8 @@ body {
 }
 
 #app {
-  @apply flex;
-  @apply flex-col;
-  @apply grow;
+  @apply flex flex-col grow min-h-0;
+  height: 100dvh;
 }
 
 .btn {

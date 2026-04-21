@@ -1,11 +1,14 @@
 <template>
-  <div class="shadow-lg z-20 border-r border-app-gray-200 bg-card-bg">
+  <div
+    class="shadow-lg z-20 border-r border-app-gray-200 bg-card-bg max-h-full"
+  >
     <vue-resizable
       :active="['r']"
       :min-width="350"
       :max-width="800"
       :width="mailLayoutStore.inboxWidth || DEFAULT_INBOX_WIDTH"
-      class="flex flex-col"
+      :disable-attributes="['h']"
+      class="flex flex-col h-full"
       @dblclick="handleDoubleClick"
       @resize:end="handleResizeEnd"
     >

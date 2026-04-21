@@ -1,15 +1,17 @@
 <template>
-  <div class="bg-app-gray-100 shrink-0">
+  <div class="bg-app-gray-100 max-h-full">
     <vue-resizable
       :active="['r']"
       :min-width="64"
       :max-width="600"
       :width="mailLayoutStore.sidebarWidth || DEFAULT_SIDEBAR_WIDTH"
+      :disable-attributes="['h']"
+      class="h-dvh"
       @dblclick="handleDoubleClick"
       @resize:move="handleResizeEnd"
     >
-      <div class="p-4 h-full overflow-y-auto flex flex-col justify-between">
-        <div>
+      <div class="p-4 min-h-0 flex flex-col">
+        <div class="flex flex-col min-h-0 flex-1">
           <a
             href="/"
             class="flex flex-row items-center justify-center group mb-4"
@@ -46,7 +48,9 @@
             </router-link>
           </div>
 
-          <EmailSidebarInboxes :counts="props.counts" />
+          <div class="flex flex-col flex-1 min-h-0">
+            <EmailSidebarInboxes :counts="props.counts" />
+          </div>
 
           <div class="my-4">
             <button
@@ -61,7 +65,7 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 pt-2 shrink-0">
           <div
             :class="[
               'flex',
