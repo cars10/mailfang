@@ -4,7 +4,7 @@ SERVER="127.0.0.1"
 PORT="2525"
 FROM="sender@example.com"
 
-MAX_JOBS=4
+MAX_JOBS=8
 job_count=0
 
 run_swaks() {

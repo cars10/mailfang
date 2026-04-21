@@ -21,6 +21,7 @@ services:
     environment:
       - SMTP_HOST=0.0.0.0:2525
       - WEB_HOST=0.0.0.0:3000
+      - SMTP_MAX_CONNECTIONS=8
     ports:
       - 2525:2525
     volumes:
