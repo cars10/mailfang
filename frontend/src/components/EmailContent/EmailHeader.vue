@@ -10,7 +10,7 @@
           class="text-app-gray-500 flex align-center text-nowrap py-2"
           :title="formatDate(email.created_at)"
         >
-          {{ todayTimeOrDate(email.created_at) }}
+          {{ formatDate(email.created_at) }}
         </div>
         <DropdownMenu :items="menuItems" />
       </div>
@@ -99,7 +99,7 @@
   import { apiClient } from '@/api/client'
   import { TrashIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
   import { parseAndDecodeHeaderValues } from '@/utils/emailAddress'
-  import { todayTimeOrDate, formatDate } from '@/helpers/date'
+  import { formatDate } from '@/helpers/date'
 
   const props = defineProps<{ email: EmailRecord }>()
 
