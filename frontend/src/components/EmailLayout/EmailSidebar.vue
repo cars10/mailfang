@@ -1,68 +1,62 @@
 <template>
-  <div class="bg-app-gray-100 max-h-full">
+  <div class="bg-app-gray-100 shrink-0 h-full">
     <vue-resizable
       :active="['r']"
       :min-width="64"
       :max-width="600"
       :width="mailLayoutStore.sidebarWidth || DEFAULT_SIDEBAR_WIDTH"
       :disable-attributes="['h']"
-      class="h-dvh"
+      class="h-full flex flex-col"
       @dblclick="handleDoubleClick"
       @resize:move="handleResizeEnd"
     >
-      <div class="p-4 min-h-0 flex flex-col">
-        <div class="flex flex-col min-h-0 flex-1">
-          <a
-            href="/"
-            class="flex flex-row items-center justify-center group mb-4"
+      <div class="p-4 flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <a
+          href="/"
+          class="flex flex-row items-center justify-center group mb-4 shrink-0"
+        >
+          <Logo
+            v-if="!sidebarCollapsed"
+            class="h-6 w-6 min-w-4 mr-2 group-hover:text-primary"
+          />
+
+          <h1
+            class="text-2xl text-app-gray-900 text-center flex flex-row items-center justify-center"
           >
-            <Logo
-              v-if="!sidebarCollapsed"
-              class="h-6 w-6 min-w-4 mr-2 group-hover:text-primary"
-            />
+            <template v-if="sidebarCollapsed">MF</template>
+            <template v-else>Mail<span class="font-bold">Fang</span></template>
+          </h1>
+        </a>
 
-            <h1
-              class="text-2xl text-app-gray-900 text-center flex flex-row items-center justify-center"
-            >
-              <template v-if="sidebarCollapsed">MF</template>
-              <template v-else
-                >Mail<span class="font-bold">Fang</span></template
-              >
-            </h1>
-          </a>
+        <div class="flex flex-col gap-2 shrink-0">
+          <router-link
+            :to="'/emails/inbox'"
+            title="All emails"
+            active-class="text-primary bg-app-gray-200"
+            class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-app-gray-200 px-2 py-1 rounded-sm overflow-hidden min-w-4"
+          >
+            <div class="flex flex-row gap-2 items-center min-w-4">
+              <InboxIcon class="h-4 w-4 shrink-0" />
+              <div v-if="!sidebarCollapsed" class="truncate">All emails</div>
+            </div>
+            <span class="text-sm text-app-gray-600 font-mono">
+              {{ props.counts.inbox }}
+            </span>
+          </router-link>
+        </div>
 
-          <div class="flex flex-col gap-2">
-            <router-link
-              :to="'/emails/inbox'"
-              title="All emails"
-              active-class="text-primary bg-app-gray-200"
-              class="h-8 flex flex-row gap-4 items-center justify-between hover:bg-app-gray-200 px-2 py-1 rounded-sm overflow-hidden min-w-4"
-            >
-              <div class="flex flex-row gap-2 items-center min-w-4">
-                <InboxIcon class="h-4 w-4 shrink-0" />
-                <div v-if="!sidebarCollapsed" class="truncate">All emails</div>
-              </div>
-              <span class="text-sm text-app-gray-600 font-mono">
-                {{ props.counts.inbox }}
-              </span>
-            </router-link>
-          </div>
+        <EmailSidebarInboxes :counts="props.counts" />
 
-          <div class="flex flex-col flex-1 min-h-0">
-            <EmailSidebarInboxes :counts="props.counts" />
-          </div>
-
-          <div class="my-4">
-            <button
-              class="btn btn--small flex flex-row items-center gap-2 w-auto"
-              :class="{ 'justify-center': sidebarCollapsed }"
-              :disabled="loadingDeleteAll"
-              @click="handleDeleteAll"
-            >
-              <TrashIcon class="h-4 w-4 min-w-4" />
-              <div v-if="!sidebarCollapsed">Delete all emails</div>
-            </button>
-          </div>
+        <div class="my-4 shrink-0">
+          <button
+            class="btn btn--small flex flex-row items-center gap-2 w-auto"
+            :class="{ 'justify-center': sidebarCollapsed }"
+            :disabled="loadingDeleteAll || props.counts.inbox === 0"
+            @click="handleDeleteAll"
+          >
+            <TrashIcon class="h-4 w-4 min-w-4" />
+            <div v-if="!sidebarCollapsed">Delete all emails</div>
+          </button>
         </div>
 
         <div class="flex flex-col gap-2 pt-2 shrink-0">
