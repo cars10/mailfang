@@ -72,11 +72,7 @@
       hasNextPage.value =
         response.pagination.page < response.pagination.total_pages
     } catch (err) {
-      if (
-        recipient &&
-        err instanceof ApiError &&
-        err.status === 404
-      ) {
+      if (recipient && err instanceof ApiError && err.status === 404) {
         router.replace({ path: '/emails/inbox', query: route.query })
         return
       }

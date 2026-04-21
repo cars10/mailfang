@@ -110,14 +110,20 @@ async fn shutdown_signal() {
         let mut sigterm = match signal(SignalKind::terminate()) {
             Ok(s) => s,
             Err(e) => {
-                error!(component = "main", "Failed to install SIGTERM handler: {}", e);
+                error!(
+                    component = "main",
+                    "Failed to install SIGTERM handler: {}", e
+                );
                 return;
             }
         };
         let mut sigint = match signal(SignalKind::interrupt()) {
             Ok(s) => s,
             Err(e) => {
-                error!(component = "main", "Failed to install SIGINT handler: {}", e);
+                error!(
+                    component = "main",
+                    "Failed to install SIGINT handler: {}", e
+                );
                 return;
             }
         };

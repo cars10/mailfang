@@ -1,6 +1,8 @@
 use diesel::prelude::*;
 use diesel::query_dsl::methods::FilterDsl;
-use diesel::{BoolExpressionMethods, ExpressionMethods, OptionalExtension, QueryDsl, SelectableHelper};
+use diesel::{
+    BoolExpressionMethods, ExpressionMethods, OptionalExtension, QueryDsl, SelectableHelper,
+};
 
 use crate::db::search_query::{ParsedSearchQuery, SearchField, parse_search_query};
 use crate::db::{EmailListPartial, EmailListRecord};
