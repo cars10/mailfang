@@ -58,11 +58,6 @@ fn sqlite_global_setup(url: &str) -> Result<(), io::Error> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ctrlc::set_handler(|| {
-        info!("Stopping mailfang...");
-        std::process::exit(0);
-    })?;
-
     logging::init();
     let config = setup_config();
 
@@ -94,9 +89,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         web_result = web::run(web_addr, db, broadcast_tx) => {
             web_result?;
         }
+        _ = shutdown_signal() => {
+            info!("Stopping mailfang...");
+        }
     }
 
     Ok(())
+}
+
+/// Waits for SIGINT (Ctrl+C) or SIGTERM (docker stop / compose down).
+///
+/// PID 1 inside a container has no default signal action, so we must install
+/// an explicit handler or Docker will wait `stop_grace_period` (10s) before
+/// SIGKILLing us.
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(e) => {
+                error!(component = "main", "Failed to install SIGTERM handler: {}", e);
+                return;
+            }
+        };
+        let mut sigint = match signal(SignalKind::interrupt()) {
+            Ok(s) => s,
+            Err(e) => {
+                error!(component = "main", "Failed to install SIGINT handler: {}", e);
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = sigterm.recv() => {}
+            _ = sigint.recv() => {}
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 fn setup_config() -> config::Config {
