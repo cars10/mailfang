@@ -43,6 +43,7 @@ diesel::table! {
     envelope_recipients (id) {
         id -> Text,
         email -> Text,
+        email_count -> Integer,
     }
 }
 

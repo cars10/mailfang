@@ -54,6 +54,7 @@ pub struct Attachment {
 pub struct EnvelopeRecipient {
     pub id: String,
     pub email: String,
+    pub email_count: i32,
 }
 
 #[derive(

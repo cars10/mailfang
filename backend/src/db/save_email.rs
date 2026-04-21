@@ -173,6 +173,7 @@ fn get_or_create_recipient(conn: &mut DbConnection, email: &str) -> Result<Strin
                 .values((
                     schema::envelope_recipients::id.eq(&new_id),
                     schema::envelope_recipients::email.eq(email),
+                    schema::envelope_recipients::email_count.eq(0),
                 ))
                 .execute(conn)?;
             Ok(new_id)
@@ -191,6 +192,15 @@ fn link_recipient_to_email(
             schema::email_envelope_recipients::envelope_recipient_id.eq(recipient_id),
         ))
         .execute(conn)?;
+
+    diesel::update(
+        schema::envelope_recipients::table.filter(schema::envelope_recipients::id.eq(recipient_id)),
+    )
+    .set(schema::envelope_recipients::email_count.eq(
+        diesel::dsl::sql::<diesel::sql_types::Integer>("email_count + 1"),
+    ))
+    .execute(conn)?;
+
     Ok(())
 }
 

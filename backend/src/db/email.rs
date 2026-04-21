@@ -84,9 +84,31 @@ pub fn mark_email_read(
 
 pub fn delete_email(conn: &mut DbConnection, email_id: &str) -> Result<usize, DbError> {
     let affected = conn.transaction::<_, DbError, _>(|conn| {
-        diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
-            .execute(conn)
-            .map_err(DbError::from)
+        let recipient_ids: Vec<String> = schema::email_envelope_recipients::table
+            .filter(schema::email_envelope_recipients::email_id.eq(email_id))
+            .select(schema::email_envelope_recipients::envelope_recipient_id)
+            .load(conn)?;
+
+        let affected =
+            diesel::delete(schema::emails::table.filter(schema::emails::id.eq(email_id)))
+                .execute(conn)?;
+
+        if affected > 0 && !recipient_ids.is_empty() {
+            diesel::update(
+                schema::envelope_recipients::table
+                    .filter(schema::envelope_recipients::id.eq_any(recipient_ids)),
+            )
+            .set(
+                schema::envelope_recipients::email_count.eq(diesel::dsl::sql::<
+                    diesel::sql_types::Integer,
+                >(
+                    "CASE WHEN email_count > 0 THEN email_count - 1 ELSE 0 END",
+                )),
+            )
+            .execute(conn)?;
+        }
+
+        Ok(affected)
     })?;
 
     if affected > 0 {
