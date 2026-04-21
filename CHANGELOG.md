@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- always show time in email header
+- improve performance when rendering 100+ inboxes
+- improve sidebar behaviour
+- cache email counts per recipient
+
 ## 1.3.0
 
 - fix logo in darkmode
@@ -27,4 +34,4 @@
 
 ## 1.0.0
 
-Initial release of MailFang. Send emails to mailfang and text them locally. 
+Initial release of MailFang. Send emails to mailfang and text them locally.
