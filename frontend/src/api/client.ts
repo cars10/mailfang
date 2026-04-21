@@ -1,5 +1,15 @@
 import type { EmailRecord, EmailListResponse, EmailCounts } from '@/types/email'
 
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 export class ApiClient {
   private baseUrl: string
   private defaultHeaders: HeadersInit
@@ -27,7 +37,8 @@ export class ApiClient {
     const response = await fetch(url, config)
 
     if (!response.ok) {
-      throw new Error(
+      throw new ApiError(
+        response.status,
         `API request failed: ${response.status} ${response.statusText}`
       )
     }
@@ -92,7 +103,8 @@ export class ApiClient {
     const response = await fetch(url)
 
     if (!response.ok) {
-      throw new Error(
+      throw new ApiError(
+        response.status,
         `API request failed: ${response.status} ${response.statusText}`
       )
     }

@@ -23,10 +23,12 @@
   import type { EmailListRecord, EmailCounts } from '@/types/email'
   import EmailSidebar from './EmailSidebar.vue'
   import EmailList from './EmailList.vue'
-  import { useRoute } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
+  import { ApiError } from '@/api/client'
 
   const searchStore = useSearchStore()
   const route = useRoute()
+  const router = useRouter()
   const emails = ref<EmailListRecord[]>([])
   const counts = ref<EmailCounts>({
     inbox: 0,
@@ -70,6 +72,14 @@
       hasNextPage.value =
         response.pagination.page < response.pagination.total_pages
     } catch (err) {
+      if (
+        recipient &&
+        err instanceof ApiError &&
+        err.status === 404
+      ) {
+        router.replace({ path: '/emails/inbox', query: route.query })
+        return
+      }
       console.error('Failed to fetch emails:', err)
     } finally {
       loading.value = false

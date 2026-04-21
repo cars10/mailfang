@@ -1,6 +1,6 @@
 use diesel::prelude::*;
 use diesel::query_dsl::methods::FilterDsl;
-use diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, SelectableHelper};
+use diesel::{BoolExpressionMethods, ExpressionMethods, OptionalExtension, QueryDsl, SelectableHelper};
 
 use crate::db::search_query::{ParsedSearchQuery, SearchField, parse_search_query};
 use crate::db::{EmailListPartial, EmailListRecord};
@@ -227,6 +227,22 @@ fn emails_to_records(
             }
         })
         .collect()
+}
+
+/// Returns true if this address has ever been an envelope recipient (row exists), including when
+/// `email_count` is zero after all mail was deleted.
+pub fn envelope_recipient_exists(
+    conn: &mut DbConnection,
+    recipient_email: &str,
+) -> Result<bool, DieselError> {
+    let id: Option<String> = FilterDsl::filter(
+        schema::envelope_recipients::table,
+        schema::envelope_recipients::email.eq(recipient_email),
+    )
+    .select(schema::envelope_recipients::id)
+    .first(conn)
+    .optional()?;
+    Ok(id.is_some())
 }
 
 pub fn get_emails_by_recipient(

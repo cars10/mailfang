@@ -50,6 +50,9 @@ pub async fn get_emails_by_recipient(
     let query: ListQuery = params.into();
 
     let mut conn = state.pool.get()?;
+    if !db::emails::envelope_recipient_exists(&mut conn, &recipient)? {
+        return Err(WebError::NotFound);
+    }
     let (emails, total_pages) = db::emails::get_emails_by_recipient(&mut conn, &recipient, &query)?;
 
     let counts = db::counts::get_email_counts(&mut conn)?;

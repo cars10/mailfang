@@ -91,7 +91,7 @@
 
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { useRouter } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import type { EmailRecord } from '@/types/email'
   import CopyBadge from '@/components/shared/CopyBadge/CopyBadge.vue'
   import DropdownMenu from '@/components/shared/DropdownMenu/DropdownMenu.vue'
@@ -103,6 +103,7 @@
 
   const props = defineProps<{ email: EmailRecord }>()
 
+  const route = useRoute()
   const router = useRouter()
   const loadingDelete = ref(false)
   const loadingDownload = ref(false)
@@ -117,7 +118,11 @@
     try {
       loadingDelete.value = true
       await apiClient.deleteEmail(props.email.id)
-      router.push('/emails/inbox')
+      const recipient = route.params.recipient as string | undefined
+      const path = recipient
+        ? `/emails/inbox/${encodeURIComponent(recipient)}`
+        : '/emails/inbox'
+      router.push({ path, query: route.query })
     } catch (err) {
       console.error('Failed to delete email:', err)
     } finally {
