@@ -1,11 +1,28 @@
 <template>
-  <div class="pt-2 flex flex-col flex-1">
-    <div class="flex flex-row items-center justify-between gap-2 h-6 mt-6 mb-2">
+  <div class="pt-2 flex flex-col flex-1 min-h-[200px]">
+    <div
+      class="flex flex-row items-center justify-between gap-2 h-6 mt-6 mb-2 shrink-0"
+    >
       <div
         v-if="!searchFocused"
         class="flex items-center gap-2 min-w-0 mx-1 py-2 flex-1"
       >
-        <span class="shrink-0">Inboxes</span>
+        <span
+          class="shrink-0 truncate flex items-baseline gap-1 min-w-0 text-sm"
+          :title="inboxesHeadingTitle"
+        >
+          <template v-if="hasActiveFilter">
+            <span class="text-xs font-mono tabular-nums text-app-gray-600">
+              {{ filteredRecipients.length }}/{{ totalInboxes }}
+            </span>
+          </template>
+          <template v-else>
+            <span>Inboxes</span>
+            <span class="text-xs font-mono tabular-nums text-app-gray-600">
+              {{ totalInboxes }}
+            </span>
+          </template>
+        </span>
         <div
           v-if="searchTerm && !sidebarCollapsed"
           class="min-w-0 flex-1 flex justify-end"
@@ -136,6 +153,18 @@
   }
 
   const itemKey = (item: Recipient) => item.recipient
+
+  const totalInboxes = computed(() => props.counts.recipients.length)
+
+  const hasActiveFilter = computed(() => searchTerm.value.trim().length > 0)
+
+  const inboxesHeadingTitle = computed(() => {
+    const total = totalInboxes.value
+    if (hasActiveFilter.value) {
+      return `${filteredRecipients.value.length}/${total} inboxes`
+    }
+    return `Inboxes (${total})`
+  })
 
   const sidebarCollapsed = computed(() => {
     return mailLayoutStore.sidebarWidth < 140
