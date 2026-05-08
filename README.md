@@ -58,8 +58,9 @@ The services will be reachable via:
 ### Binary
 
 1. Download the latest binary from the [releases page](https://github.com/cars10/mailfang/releases)
-2. Set executable permissions: `chmod +x ./mailfang-linux-amd64`
-3. Run MailFang: `./mailfang-linux-amd64`
+2. On MacOS you need to fix security issues because the app is not signed: `xattr -cr ./mailfang-macos-*`
+3. Set executable permissions: `chmod +x ./mailfang-linux-amd64`
+4. Run MailFang: `./mailfang-linux-amd64`
 
 You can view all available configuration options by running `./mailfang-linux-amd64 --help`.
 
